@@ -1,0 +1,4 @@
+tech-mate.tech, www.tech-mate.tech {
+    encode zstd gzip
+    reverse_proxy app:8000
+}

@@ -1,0 +1,15 @@
+# Secrets and deployment credentials
+.env
+.deploy/
+
+# Python and tooling output
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# Local build/editor files
+dist/
+build/
+.DS_Store
+.vscode/

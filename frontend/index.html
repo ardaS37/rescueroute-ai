@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RescueRoute AI - Control Centre</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div><span class="eyebrow">RESCUEROUTE AI</span><h1>Emergency control centre</h1></div>
+      <div class="connection"><a href="arena/">Open free 2D arena</a><a href="live/">Open live crowd flow</a><span class="pulse"></span><span id="connection-status">Live simulation</span></div>
+    </header>
+    <main>
+      <section class="controls" aria-label="Simulation controls">
+        <label>Recorded scenario <select id="recorded-scenario"><option value="normal">Normal operation</option><option value="gate_a_busy">Gate A congested</option><option value="corridor_closed">Gate C corridor closed</option><option value="primary_team_unavailable">Primary team unavailable</option><option value="hajj_tawaf_surge">Hajj: Tawaf surge</option><option value="hajj_masaa_congestion">Hajj: Mas'a congestion</option></select></label>
+        <button id="apply-scenario">Apply demo scenario</button>
+        <button id="run-full-demo" class="primary">Run full emergency demo</button>
+        <label>Venue <select id="template"><option value="stadium_match">Stadium match</option><option value="music_festival">Music festival</option><option value="pilgrimage_flow">Pilgrimage flow</option></select></label>
+        <label>Crowd pattern <select id="crowd-pattern"><option value="gate_surge">Gate surge</option><option value="stage_cluster">Stage cluster</option><option value="balanced">Balanced</option></select></label>
+        <label>Seed <input id="seed" type="number" min="0" value="42"></label>
+        <button id="load-scenario" class="primary">Load scenario</button>
+        <button id="advance-time">Advance 10 min</button>
+        <button id="create-incident" class="alert-action">Create emergency</button>
+      </section>
+
+      <section class="decision-details" aria-label="Route decision details">
+        <div><span>Scenario</span><strong id="active-scenario">Custom</strong></div>
+        <div><span>Route distance</span><strong id="distance-cost">-</strong></div>
+        <div><span>Crowd penalty</span><strong id="crowd-cost">-</strong></div>
+        <div><span>Network penalty</span><strong id="network-cost">-</strong></div>
+        <div class="api-status"><span>CAMARA data sources</span><div id="api-status"><em class="api-badge simulation">Simulation ready</em></div></div>
+        <div class="gate-options"><span>Gate comparison</span><div id="gate-options">Create an emergency to compare entries.</div></div>
+        <div class="progress-actions"><span>Geofence progress</span><div><button id="mark-gate">Mark gate entered</button><button id="mark-arrival">Mark patient reached</button></div></div>
+        <div class="decision-history"><span>Decision history</span><ol id="decision-history"><li>No route decisions recorded.</li></ol></div>
+      </section>
+      <section class="metrics" aria-label="Live metrics">
+        <div><span>Incident</span><strong id="incident-status">No active incident</strong></div>
+        <div><span>Selected gate</span><strong id="selected-gate">-</strong></div>
+        <div><span>Estimated arrival</span><strong id="eta">-</strong></div>
+      </section>
+
+      <section class="workspace">
+        <div class="map-panel">
+          <div class="panel-heading"><div><span class="eyebrow">VENUE MAP</span><h2 id="venue-title">Stadium match</h2></div><span id="simulated-time">T+0 min</span></div>
+          <div class="map-wrap"><svg id="venue-map" viewBox="0 0 840 510" role="img" aria-label="Venue simulation map"></svg></div>
+          <div class="legend"><span><i class="route-key"></i>Emergency route</span><span><i class="crowd-key low"></i>Low density</span><span><i class="crowd-key high"></i>High density</span><span><i class="closed-key"></i>Closed corridor</span></div>
+        </div>
+        <aside class="side-panel">
+          <div class="panel-heading"><div><span class="eyebrow">NETWORK INTELLIGENCE</span><h2>Crowd zones</h2></div></div>
+          <div id="zone-list" class="zone-list" aria-live="polite"></div>
+          <div class="disruption">
+            <span class="eyebrow">LIVE DISRUPTION</span>
+            <label>Corridor <select id="corridor"></select></label>
+            <button id="toggle-corridor">Close corridor & reroute</button>
+          </div>
+          <div class="event-log"><span class="eyebrow">AGENT ACTIVITY</span><ol id="activity"><li>Awaiting emergency event</li></ol></div>
+        </aside>
+      </section>
+      <p id="decision" class="decision" aria-live="polite">Load a scenario, then create an emergency to see the AI decision.</p>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
