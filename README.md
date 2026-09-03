@@ -1,6 +1,6 @@
 # RescueRoute AI
 
-RescueRoute AI helps emergency teams reach incidents inside crowded stadiums, concerts, festivals, and pilgrimage sites. Instead of choosing the shortest route, it selects the most feasible route using venue access, crowd density, and mobile-network conditions.
+RescueRoute AI helps emergency teams reach incidents inside crowded stadiums, concerts, festivals, and Hajj sites. Instead of choosing the shortest route, it selects the most feasible route using venue access, crowd density, and mobile-network conditions.
 
 **Live demo:** https://tech-mate.tech/dashboard/
 **Free 2D arena:** https://tech-mate.tech/dashboard/arena/
@@ -14,13 +14,13 @@ At mass events, a route that is physically shorter can be slower or unsafe becau
 
 ## What the prototype demonstrates
 
-- 12–20 node venue graphs for stadium, festival, and pilgrimage layouts.
+- 12–20 node venue graphs for stadium, festival, and Hajj layouts.
 - Explainable ETA scoring: `ETA = distance + crowd penalty + network penalty + access penalty`.
 - Deterministic fallback scenarios: normal operation, Gate A congestion, corridor closure, and primary-team unavailability.
 - A simplified Masjid al-Haram Hajj/Umrah graph with King Abdulaziz, King Fahd, King Abdullah, and Al-Safa gates, Mataf, Kaaba/Tawaf, and Mas'a flow zones.
 - Agentic orchestration: incident → reachable team → location → congestion → route scoring → QoS → geofence progress → reroute.
 - A LangGraph + Gemini decision agent that creates a bounded CAMARA tool plan; the routing engine validates every action and retains a deterministic fallback.
-- A shared live 2D crowd arena that sends aggregated density to the backend routing engine, including a Mataf/Kaaba/Mas'a view for the pilgrimage venue.
+- A shared live 2D crowd arena that sends aggregated density to the backend routing engine, including a Mataf/Kaaba/Mas'a view for the Hajj venue.
 - WebSocket updates for dispatch, reroute, simulation state, and geofence progress.
 
 ## Nokia Network as Code / CAMARA integration

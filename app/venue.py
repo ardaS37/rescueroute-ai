@@ -82,7 +82,7 @@ TEMPLATES = {
         ]),
     ),
     "pilgrimage_flow": VenueTemplate(
-        key="pilgrimage_flow", title="Masjid al-Haram pilgrimage flow",
+        key="pilgrimage_flow", title="Masjid al-Haram Hajj flow",
         description="Simplified Hajj/Umrah emergency-routing model around the Kaaba, Mataf, and Mas'a.",
         gates=frozenset({"king_abdulaziz_gate", "king_fahd_gate", "king_abdullah_gate", "al_safa_gate"}),
         zones=("western_courtyard", "northern_expansion", "mataf_zone", "masaa_zone", "medical_lane"),
