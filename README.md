@@ -19,7 +19,8 @@ At mass events, a route that is physically shorter can be slower or unsafe becau
 - Deterministic fallback scenarios: normal operation, Gate A congestion, corridor closure, and primary-team unavailability.
 - A simplified Masjid al-Haram Hajj/Umrah graph with King Abdulaziz, King Fahd, King Abdullah, and Al-Safa gates, Mataf, Kaaba/Tawaf, and Mas'a flow zones.
 - Agentic orchestration: incident → reachable team → location → congestion → route scoring → QoS → geofence progress → reroute.
-- A live 2D crowd arena that sends aggregated density to the backend routing engine.
+- A LangGraph + Gemini decision agent that creates a bounded CAMARA tool plan; the routing engine validates every action and retains a deterministic fallback.
+- A shared live 2D crowd arena that sends aggregated density to the backend routing engine, including a Mataf/Kaaba/Mas'a view for the pilgrimage venue.
 - WebSocket updates for dispatch, reroute, simulation state, and geofence progress.
 
 ## Nokia Network as Code / CAMARA integration
@@ -36,6 +37,10 @@ The Nokia Network as Code simulator is used when `NAC_LIVE_ENABLED=true` and a v
 
 The dashboard labels every API activity as **Live Nokia**, **Fallback**, or **Simulation**. This makes the live integration and resilient behaviour visible to evaluators.
 
+## AI agent layer
+
+The emergency agent does not make arbitrary network calls. It observes the incident priority, venue conditions, network load, and reroute trigger; Gemini selects from a fixed CAMARA tool set, and the backend validates that plan before execution. The dashboard shows **AI Agent** observation, plan, and reasoning rows before the resulting CAMARA calls. If Gemini is unavailable, a recorded policy produces the same safe tool sequence so the demo continues.
+
 ## Demo script
 
 Use [PITCH_DEMO.md](PITCH_DEMO.md) for the 2–3 minute live presentation sequence.
@@ -48,7 +53,7 @@ Recommended screen flow:
 4. Point out the turquoise active route, selected-gate ring, and red previous route when a reroute occurs.
 5. Show the **Network feed** card: live Nokia data when available, otherwise the recorded fallback label.
 
-For the Hajj flow, choose **Hajj: Tawaf surge**. The model routes to `kaaba_tawaf` through named Masjid al-Haram gates. It is a demonstration model only, not an official operational map or emergency-routing instruction.
+For the Hajj flow, choose **Hajj: Tawaf surge**, then open the arena. The shared Hajj view renders the Kaaba, Mataf circulation rings, Mas'a corridor, and named Masjid al-Haram gates while the same routing engine evaluates crowd and network penalties. It is a demonstration model only, not an official operational map or emergency-routing instruction.
 
 ## Run locally
 
@@ -69,9 +74,11 @@ Open `http://127.0.0.1:8000/dashboard/` or `http://127.0.0.1:8000/docs`.
 RAPIDAPI_KEY=your_key_here
 RAPIDAPI_HOST=network-as-code.nokia.rapidapi.com
 NAC_LIVE_ENABLED=false
-NAC_APPLICATION_SERVER_IP=1.1.1.1
+NAC_APPLICATION_SERVER_IP=your_vps_public_ipv4
 NAC_WEBHOOK_BASE_URL=https://tech-mate.tech
 NAC_WEBHOOK_TOKEN=replace-with-a-random-secret
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-3.6-flash
 ```
 
 Keep `NAC_LIVE_ENABLED=false` for an entirely deterministic demo. Enable it to use Nokia simulator signals; fallback data will be used automatically for unavailable or rate-limited calls.
@@ -81,6 +88,7 @@ Keep `NAC_LIVE_ENABLED=false` for an entirely deterministic demo. Enable it to u
 - `POST /incidents` — create an incident.
 - `POST /incidents/{id}/dispatch` — execute the orchestration and receive an explainable route decision.
 - `POST /incidents/{id}/recalculate-route` — reroute after a network, crowd, or corridor change.
+- `GET /incidents/{id}/agent-trace` — inspect the agent's model source, tool plan, and concise reasoning.
 - `GET /incidents/{id}/history` — inspect dispatch/reroute decisions.
 - `POST /simulation/scenarios` — load a recorded fallback scenario.
 - `POST /simulation/events/congestion` — update a zone from the 2D arena or a manual demo action.

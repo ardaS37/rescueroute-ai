@@ -50,6 +50,14 @@ Point to **Network feed**:
 
 “This card shows whether the current network component comes from the live Nokia simulator or deterministic fallback data. QoS state is visible here as well.”
 
+### Hajj variation
+
+For the pilgrimage-focused version, select **Hajj: Tawaf surge** before opening the arena. Say:
+
+“The same agent now works around the Kaaba. Mataf congestion, Mas'a flow, named access gates, and network conditions are scored together. A route may reject a physically closer gate if its crowd or cellular conditions would slow a critical team.”
+
+Point to the **Kaaba**, **Mataf** rings, **Mas'a corridor**, and the selected named gate in the shared 2D view.
+
 ## 2:25–2:45 — Close
 
 “RescueRoute AI gives event operators an explainable, resilient way to dispatch emergency teams through crowded venues. It is designed for stadiums, festivals, pilgrimage sites, and other high-density events across the MENA region — and can integrate with operator-grade CAMARA APIs as deployments scale.”
