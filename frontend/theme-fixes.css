@@ -1,0 +1,5 @@
+/* Final contrast layer for the light control-centre theme. */
+body{background:#fff!important}
+.map-wrap,.map-wrap svg{background:#fff!important}
+.node-label{fill:#253b32!important;font-weight:700!important}
+.panel-heading>span,.legend,.metrics span,.decision-details span{color:#52645b!important}
