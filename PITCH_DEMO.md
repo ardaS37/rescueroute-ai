@@ -12,7 +12,7 @@ Open the **Control Centre** at `/dashboard/`.
 
 ## 0:40–1:15 — Agent orchestration and explainability
 
-Select **Gate A congested** and click **Run full emergency demo**.
+Select **Gate A congested**, click **Apply demo scenario**, then click **Run full emergency demo**.
 
 Say:
 

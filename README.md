@@ -47,7 +47,7 @@ Use [PITCH_DEMO.md](PITCH_DEMO.md) for the 2–3 minute live presentation sequen
 
 Recommended screen flow:
 
-1. Open the Control Centre and apply **Gate A congested**.
+1. Open the Control Centre, choose **Gate A congested**, and click **Apply demo scenario**.
 2. Run **Full emergency demo** to show the agent trace, gate comparison, QoS, and decision explanation.
 3. Open the free 2D arena, click an incident location, then choose **Stage surge** or **Evacuate to gates**.
 4. Point out the turquoise active route, selected-gate ring, and red previous route when a reroute occurs.

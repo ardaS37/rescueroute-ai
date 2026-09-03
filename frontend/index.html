@@ -15,11 +15,11 @@
       <section class="controls" aria-label="Simulation controls">
         <label>Recorded scenario <select id="recorded-scenario"><option value="normal">Normal operation</option><option value="gate_a_busy">Gate A congested</option><option value="corridor_closed">Gate C corridor closed</option><option value="primary_team_unavailable">Primary team unavailable</option><option value="hajj_tawaf_surge">Hajj: Tawaf surge</option><option value="hajj_masaa_congestion">Hajj: Mas'a congestion</option></select></label>
         <button id="apply-scenario">Apply demo scenario</button>
-        <button id="run-full-demo" class="primary">Run full emergency demo</button>
+        <button id="run-full-demo" class="primary" title="Uses the currently loaded venue, crowd pattern, seed, and scenario">Run full emergency demo</button>
         <label>Venue <select id="template"><option value="stadium_match">Stadium match</option><option value="music_festival">Music festival</option><option value="pilgrimage_flow">Pilgrimage flow</option></select></label>
         <label>Crowd pattern <select id="crowd-pattern"><option value="gate_surge">Gate surge</option><option value="stage_cluster">Stage cluster</option><option value="balanced">Balanced</option></select></label>
         <label>Seed <input id="seed" type="number" min="0" value="42"></label>
-        <button id="load-scenario" class="primary">Load scenario</button>
+        <button id="load-scenario" class="primary">Apply venue parameters</button>
         <button id="advance-time">Advance 10 min</button>
         <button id="create-incident" class="alert-action">Create emergency</button>
       </section>

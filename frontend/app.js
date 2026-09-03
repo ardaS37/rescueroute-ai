@@ -140,13 +140,13 @@ function demoIncidentLocation() {
 }
 async function runFullDemo() {
   const button = $("run-full-demo"), activity = [];
+  let temporaryClosure = null;
   button.disabled = true; button.textContent = "Running emergency demo…";
   try {
     incident = decision = null; routeHistory = [];
-    state = await request("/simulation/scenarios", { method:"POST", body:JSON.stringify({ scenario:$("recorded-scenario").value }) });
-    layout = await request("/simulation/layout"); render();
+    if (!state || !layout) { state = await request("/simulation/state"); layout = await request("/simulation/layout"); }
     const location = demoIncidentLocation();
-    activity.push(`Scenario loaded: ${label(state.active_scenario)}`, `Incident received: critical medical emergency at ${label(location)}`); log(activity);
+    activity.push(`Auto demo uses current parameters: ${state.title} · ${label(state.crowd_pattern)} · seed ${state.seed}`, `Incident received: critical medical emergency at ${label(location)}`); log(activity);
     $("decision").textContent = "Finding a reachable team and evaluating entry routes…";
     await pause(450);
 
@@ -158,14 +158,18 @@ async function runFullDemo() {
     await pause(650);
 
     const disruption = decision.segments.find(segment => segment.zone) || decision.segments[0];
-    if (disruption) {
+    const disruptionKey = disruption ? [disruption.source, disruption.destination].sort().join(" <-> ") : "";
+    if (disruption && !state.closed_corridors.includes(disruptionKey)) {
       state = await request("/simulation/events/corridor", { method:"POST", body:JSON.stringify({ source:disruption.source, destination:disruption.destination, closed:true }) });
+      temporaryClosure = disruption;
       render(); activity.push(`Live disruption: ${label(disruption.source)} ↔ ${label(disruption.destination)} closed`); log(activity);
       const reroute = await request(`/incidents/${incident.id}/recalculate-route`, { method:"POST" });
       incident = reroute.incident; decision = reroute.decision; await refreshHistory(); render();
       activity.push(`Route recalculated: ${label(decision.selected_gate)}`, ...decision.api_calls); log(activity);
       $("decision").textContent = decision.explanation;
       await pause(650);
+    } else if (disruption) {
+      activity.push(`Auto reroute skipped: ${label(disruption.source)} ↔ ${label(disruption.destination)} was already closed`); log(activity);
     }
 
     const gateProgress = await request(`/incidents/${incident.id}/events/geofence`, { method:"POST", body:JSON.stringify({ team_id:decision.team_id, location:decision.selected_gate, event_type:"entered_selected_gate" }) });
@@ -176,7 +180,15 @@ async function runFullDemo() {
     activity.push("Geofencing: team reached patient", "Emergency demo completed"); log(activity);
     $("decision").textContent = "Emergency response completed. The selected team was tracked from dispatch through arrival.";
   } catch (error) { $("decision").textContent = error.message; activity.push(`Demo failed: ${error.message}`); log(activity); }
-  finally { button.disabled = false; button.textContent = "Run full emergency demo"; }
+  finally {
+    if (temporaryClosure) {
+      try {
+        state = await request("/simulation/events/corridor", { method:"POST", body:JSON.stringify({ source:temporaryClosure.source, destination:temporaryClosure.destination, closed:false }) });
+        render(); addLiveActivity(`Auto demo cleanup: ${label(temporaryClosure.source)} ↔ ${label(temporaryClosure.destination)} reopened; your parameters were preserved`);
+      } catch { addLiveActivity("Auto demo cleanup could not reopen the temporary corridor"); }
+    }
+    button.disabled = false; button.textContent = "Run full emergency demo";
+  }
 }
 async function createIncident() {
   try {
