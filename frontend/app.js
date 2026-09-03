@@ -98,7 +98,7 @@ function drawMap() {
   }).join("");
   const halos = layout.nodes.filter(n => n.id !== "ambulance_bay").map((node) => { const relevant = layout.edges.find(e => e.source === node.id || e.destination === node.id); const d = relevant?.zone ? state.zone_congestion[relevant.zone] || .2 : .1; return `<circle class="crowd-halo" cx="${node.x}" cy="${node.y}" r="${30 + d * 46}" fill="${densityColor(d)}"/>`; }).join("");
   const marks = layout.nodes.map((node) => `<g><circle class="node ${node.kind} ${incident?.location === node.id ? "incident" : ""}" cx="${node.x}" cy="${node.y}" r="${node.kind === "gate" ? 13 : 10}"/><text class="node-label" x="${node.x}" y="${node.y - 20}">${label(node.id)}</text></g>`).join("");
-  svg.innerHTML = `<rect width="840" height="510" fill="#0a151d"/>${halos}${routeLines}${marks}`;
+  svg.innerHTML = `<rect width="840" height="510" fill="#f7faf7"/>${halos}${routeLines}${marks}`;
 }
 function log(items) { $("activity").innerHTML = items.map(item => `<li>${formatActivity(item)}</li>`).join(""); }
 async function refreshHistory() { if (incident) { routeHistory = (await request(`/incidents/${incident.id}/history`)).entries; render(); } }
