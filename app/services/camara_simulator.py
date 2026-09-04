@@ -96,6 +96,19 @@ class CamaraSimulator:
         self._crowd_distribution[zone] = round(density * 1_200)
         return self.state()
 
+    def update_congestion_many(self, zone_densities: dict[str, float]) -> SimulationState:
+        """Apply a single estimated-pressure snapshot atomically for all venue zones."""
+        invalid = [zone for zone in zone_densities if zone not in self._zone_congestion]
+        if invalid:
+            raise ValueError(f"Unknown zone '{invalid[0]}' for {self._template.key}.")
+        invalid_density = next((value for value in zone_densities.values() if not 0 <= value <= 1), None)
+        if invalid_density is not None:
+            raise ValueError("Zone density must be between 0 and 1.")
+        for zone, density in zone_densities.items():
+            self._zone_congestion[zone] = round(density, 2)
+            self._crowd_distribution[zone] = round(density * 1_200)
+        return self.state()
+
     def set_corridor_status(self, source: str, destination: str, closed: bool) -> SimulationState:
         if destination not in {edge.destination for edge in self._template.graph.get(source, ())}:
             raise ValueError(f"'{source}' and '{destination}' are not directly connected.")

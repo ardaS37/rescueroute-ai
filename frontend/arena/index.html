@@ -22,13 +22,13 @@
         <button id="evacuate">Evacuate to gates</button>
         <button id="sync">Sync heatmap to routing engine</button>
       </section>
-      <section class="stats" aria-live="polite"><div><span>Active agents</span><strong id="agent-count">0</strong></div><div><span>Peak density</span><strong id="peak">-</strong></div><div><span>Network feed</span><strong id="network-feed">Simulation data</strong></div><div><span>Incident</span><strong id="incident-status">Click arena to place</strong></div><div><span>Backend route</span><strong id="route-status">Not calculated</strong></div></section>
+      <section class="stats" aria-live="polite"><div><span>Active agents</span><strong id="agent-count">0</strong></div><div><span>Peak estimated pressure</span><strong id="peak">-</strong></div><div><span>CAMARA network feed</span><strong id="network-feed">Simulation data</strong></div><div><span>Incident</span><strong id="incident-status">Click arena to place</strong></div><div><span>Backend route</span><strong id="route-status">Not calculated</strong></div></section>
       <section class="arena-wrap">
         <canvas id="arena" aria-label="Free two-dimensional stadium crowd simulation. Click to place an incident."></canvas>
-        <div class="hint">Click to place an incident • Regional crowd density feeds the shared routing engine • Dashboard routes and reroutes appear here live</div>
+        <div class="hint">Crowd dots are simulated agents. The heatmap is a network-informed estimate: local crowd model + CAMARA network load. Dashboard routes and reroutes appear here live.</div>
       </section>
       <section class="route-flow" aria-live="polite"><span>LIVE ROUTE FLOW</span><strong id="route-flow">Awaiting incident placement</strong></section>
-      <section class="legend"><span><i class="dot"></i> Crowd agents</span><span><i class="heat"></i> Density heatmap</span><span><i class="incident"></i> Incident location</span><span><i class="gate"></i> Emergency gates</span></section>
+      <section class="legend"><span><i class="dot"></i> Simulated crowd agents</span><span><i class="heat"></i> Network-informed pressure estimate</span><span><i class="incident"></i> Incident location</span><span><i class="gate"></i> Emergency gates</span></section>
     </main>
     <script src="app.js"></script>
   </body>

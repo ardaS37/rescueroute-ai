@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.models import (AdvanceSimulationRequest, ApplyScenarioRequest, ConfigureSimulationRequest, CorridorStatusRequest,
-    CreateIncidentRequest, DispatchResponse, GeofenceEventRequest, HealthResponse, Incident,
+    BulkCongestionRequest, CreateIncidentRequest, DispatchResponse, GeofenceEventRequest, HealthResponse, Incident,
     AgentRuntimeStatus, AgentTrace, IncidentProgress, IncidentRouteHistory, SimulationState,
     UpdateCongestionRequest, VenueLayout, VenueTemplateSummary)
 from app.services.camara_simulator import CamaraSimulator
@@ -254,6 +254,22 @@ async def update_congestion(payload: UpdateCongestionRequest) -> SimulationState
         await reroute_affected_incidents(
             f"Automatic reroute: congestion changed in {payload.zone.replace('_', ' ')}",
             zones={payload.zone},
+        )
+        return simulation_state
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error))
+
+
+@app.post("/simulation/events/congestion/batch", response_model=SimulationState, tags=["simulation events"])
+async def update_congestion_batch(payload: BulkCongestionRequest) -> SimulationState:
+    """Receive one whole-venue 2D pressure estimate and reroute at most once."""
+    try:
+        simulation_state = camara.update_congestion_many(payload.zone_densities)
+        persist_simulation(simulation_state)
+        await realtime.broadcast({"type": "simulation_state", "state": simulation_state.model_dump(mode="json")})
+        await reroute_affected_incidents(
+            "Automatic reroute: network-informed 2D pressure estimate changed",
+            zones=set(payload.zone_densities),
         )
         return simulation_state
     except ValueError as error:

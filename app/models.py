@@ -133,6 +133,10 @@ class UpdateCongestionRequest(BaseModel):
     density: float = Field(ge=0, le=1, description="0 = clear, 1 = severely congested")
 
 
+class BulkCongestionRequest(BaseModel):
+    zone_densities: dict[str, float] = Field(min_length=1)
+
+
 class CorridorStatusRequest(BaseModel):
     source: str = Field(min_length=1)
     destination: str = Field(min_length=1)

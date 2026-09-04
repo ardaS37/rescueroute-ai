@@ -76,3 +76,15 @@ class WebSocketEndpointTests(unittest.TestCase):
         with TestClient(app) as client:
             response = client.post("/webhooks/nokia/geofence", json={"type": "area-entered"})
         self.assertEqual(response.status_code, 401)
+
+    def test_batch_pressure_update_changes_multiple_zones_in_one_request(self) -> None:
+        with TestClient(app) as client:
+            client.post("/simulation/configure", json={
+                "template": "stadium_match", "seed": 42, "crowd_pattern": "balanced"
+            })
+            response = client.post("/simulation/events/congestion/batch", json={
+                "zone_densities": {"north_zone": 0.61, "west_zone": 0.42}
+            })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["zone_congestion"]["north_zone"], 0.61)
+        self.assertEqual(response.json()["zone_congestion"]["west_zone"], 0.42)
