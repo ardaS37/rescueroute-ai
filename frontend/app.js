@@ -57,7 +57,7 @@ function sourceLabel(source) { return source === "live" ? "Live Nokia" : source 
 function formatActivity(message) { const source = apiSource(message); return `<em class="api-badge ${source}">${sourceLabel(source)}</em> ${escapeHtml(message)}`; }
 function renderApiStatus() {
   const calls = decision?.api_calls || [];
-  if (!calls.length) { const agentLabel = agentRuntime?.configured ? `Gemini ready · ${agentRuntime.model}` : "AI fallback policy"; $("api-status").innerHTML = `<em class="api-badge simulation">Simulation ready</em><em class="api-badge agent">${agentLabel}</em>`; return; }
+  if (!calls.length) { const agentLabel = agentRuntime?.configured ? `Gemini configured · ${agentRuntime.model}` : "AI fallback policy"; $("api-status").innerHTML = `<em class="api-badge simulation">Simulation ready</em><em class="api-badge agent">${agentLabel}</em>`; return; }
   const sources = ["agent", "live", "fallback", "simulation"].filter(source => calls.some(call => apiSource(call) === source));
   $("api-status").innerHTML = sources.map(source => `<em class="api-badge ${source}">${sourceLabel(source)}</em>`).join("");
 }

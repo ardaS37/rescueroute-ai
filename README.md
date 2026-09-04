@@ -79,12 +79,12 @@ NAC_APPLICATION_SERVER_IP=your_vps_public_ipv4
 NAC_WEBHOOK_BASE_URL=https://tech-mate.tech
 NAC_WEBHOOK_TOKEN=replace-with-a-random-secret
 GEMINI_API_KEY=your_key_here
-GEMINI_MODEL=gemini-3.6-flash
+GEMINI_MODEL=gemini-flash-lite-latest
 ```
 
 Keep `NAC_LIVE_ENABLED=false` for an entirely deterministic demo. Enable it to use Nokia simulator signals; fallback data will be used automatically for unavailable or rate-limited calls.
 
-`GET /agent/status` reports whether the deployed instance has a Gemini key configured, without exposing the key. If it reports `deterministic_fallback`, add `GEMINI_API_KEY` and `GEMINI_MODEL=gemini-3.6-flash` to the VPS `.env`, then recreate the app container.
+`GET /agent/status` reports whether the deployed instance has a Gemini key configured, without exposing the key. If it reports `deterministic_fallback`, add `GEMINI_API_KEY` and `GEMINI_MODEL=gemini-flash-lite-latest` to the VPS `.env`, then recreate the app container.
 
 Nokia Geofencing and QoD callbacks require `NAC_WEBHOOK_TOKEN`. RescueRoute sends this as the Nokia sink credential and accepts callback requests only when they carry `Authorization: Bearer <token>`.
 

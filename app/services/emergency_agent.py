@@ -62,7 +62,7 @@ class EmergencyAgent:
         configured = bool(os.getenv("GEMINI_API_KEY", "").strip())
         return AgentRuntimeStatus(
             provider="gemini" if configured else "deterministic_fallback",
-            model=os.getenv("GEMINI_MODEL", "gemini-3.6-flash") if configured else None,
+            model=os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest") if configured else None,
             configured=configured,
         )
 
@@ -134,11 +134,15 @@ class EmergencyAgent:
                 "Return {tools: string[], reasoning: string} with a concise reasoning trace.",
             ],
         }
-        model = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+        model = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         payload = {
             "contents": [{"role": "user", "parts": [{"text": json.dumps(prompt)}]}],
-            "generationConfig": {"temperature": 0, "responseMimeType": "application/json"},
+            "generationConfig": {
+                "temperature": 0,
+                "maxOutputTokens": 160,
+                "responseMimeType": "application/json",
+            },
         }
         response = httpx.post(url, headers={"x-goog-api-key": key}, json=payload, timeout=12)
         response.raise_for_status()
