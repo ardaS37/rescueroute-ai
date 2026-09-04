@@ -51,6 +51,10 @@ def verify_nokia_webhook(request: Request) -> None:
     """
     expected = os.getenv("NAC_WEBHOOK_TOKEN", "").strip()
     provided = request.headers.get("authorization", "")
+    allow_unsigned_simulator = os.getenv("NAC_SIMULATOR_ALLOW_UNSIGNED_CALLBACKS", "").lower() == "true"
+    if expected and not provided and allow_unsigned_simulator:
+        logger.warning("Accepted unsigned Nokia simulator callback because simulator mode is explicitly enabled")
+        return
     basic_value = base64.b64encode(f"rescueroute-ai:{expected}".encode("utf-8")).decode("ascii")
     valid_credentials = (f"Bearer {expected}", f"Basic {basic_value}")
     if not expected or not any(hmac.compare_digest(provided, candidate) for candidate in valid_credentials):
