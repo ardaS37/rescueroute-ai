@@ -3,20 +3,179 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RescueRoute AI</title>
-    <link rel="stylesheet" href="/dashboard/menu.css?v=4">
+    <meta name="theme-color" content="#061316">
+    <meta name="description" content="RescueRoute AI finds safer, faster emergency routes through crowded venues using live crowd and network intelligence.">
+    <title>RescueRoute AI — Every second, intelligently routed</title>
+    <script>
+      (() => {
+        try {
+          const saved = localStorage.getItem("rescueroute-theme");
+          document.documentElement.dataset.theme = saved || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+        } catch (_) {
+          document.documentElement.dataset.theme = "dark";
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/dashboard/menu.css?v=8">
+    <script src="/dashboard/menu.js?v=1" defer></script>
   </head>
   <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <header class="site-header glass-shell">
+      <a class="brand" href="/" aria-label="RescueRoute AI home">
+        <img class="brand-mark" src="/dashboard/assets/rescueroute-logo.png?v=1" alt="" width="44" height="44">
+        <span class="brand-name">RESCUEROUTE <em>AI</em></span>
+      </a>
+
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="#platform">Platform</a>
+        <a href="#interfaces">Interfaces</a>
+        <a href="/docs">API</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="github-link" href="https://github.com/ardaS37/rescueroute-ai" target="_blank" rel="noreferrer" aria-label="Open RescueRoute AI on GitHub">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.87c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.35 1.09 2.92.83.09-.65.35-1.09.64-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.82a9.6 9.6 0 0 1 2.5.34c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.77c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg>
+          <span>GitHub</span>
+        </a>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to light mode" aria-pressed="false">
+          <span class="toggle-track" aria-hidden="true">
+            <svg class="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg>
+            <svg class="moon" viewBox="0 0 24 24"><path d="M20.2 15.4A8.3 8.3 0 0 1 8.6 3.8 8.4 8.4 0 1 0 20.2 15.4Z"/></svg>
+            <i></i>
+          </span>
+          <span class="theme-label">Dark</span>
+        </button>
+        <a class="header-cta" href="/dashboard/">Open control centre <span>↗</span></a>
+      </div>
+    </header>
+
     <main>
-      <header><span>RESCUEROUTE AI</span><h1>Emergency routing simulation suite</h1><p>Network-aware emergency response for crowded events.</p></header>
-      <section class="links" aria-label="Application pages">
-        <a href="/dashboard/"><b>Control centre</b><small>Venue map, incidents, routing and live disruption controls.</small><i>Open →</i></a>
-        <a href="/dashboard/arena/"><b>Free 2D arena</b><small>Continuous X-Y crowd agents, density heatmap and backend-linked routing.</small><i>Open →</i></a>
-        <a href="/dashboard/medic/"><b>Medical team</b><small>Responder view: your assignment, entry gate, route and arrival reporting.</small><i>Open →</i></a>
-        <a href="/dashboard/live/"><b>Corridor flow</b><small>Network and pedestrian flow through the emergency access graph.</small><i>Open →</i></a>
-        <a href="/docs"><b>API documentation</b><small>Swagger interface for every simulation and incident endpoint.</small><i>Open →</i></a>
+      <section class="hero" id="platform">
+        <div class="hero-copy">
+          <div class="status-pill"><i></i> Network-aware response system</div>
+          <h1>Find the safest path<br><span>before every second counts.</span></h1>
+          <p class="hero-lede">RescueRoute combines crowd pressure, venue access and mobile-network conditions to guide emergency teams through complex, crowded spaces.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="/dashboard/">Launch control centre <span>↗</span></a>
+          </div>
+          <div class="signal-row" aria-label="Platform highlights">
+            <div><span class="signal-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/></svg>
+            </span><p><strong>Network-aware</strong><small>Signal-informed decisions</small></p></div>
+            <div><span class="signal-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 20c0-4 2.7-6 6-6s6 2 6 6M15 15c3.4 0 5 1.7 5 4"/></svg>
+            </span><p><strong>Crowd-aware</strong><small>Live density intelligence</small></p></div>
+          </div>
+        </div>
+
+        <div class="hero-stage" id="hero-stage" aria-label="Animated emergency route finding a safe path around a high-density crowd zone">
+          <div class="stage-orbit orbit-one" aria-hidden="true"></div>
+          <div class="stage-orbit orbit-two" aria-hidden="true"></div>
+          <div class="map-glass">
+            <div class="map-topline"><span><i></i> LIVE VENUE MAP</span><b>LUSAIL / ZONE 04</b></div>
+            <svg class="route-map" viewBox="0 0 700 570" role="img" aria-labelledby="map-title map-desc">
+              <title id="map-title">RescueRoute live route visualization</title>
+              <desc id="map-desc">A glowing turquoise route travels between venue blocks and safely passes around a red congestion zone.</desc>
+              <defs>
+                <pattern id="small-grid" width="44" height="44" patternUnits="userSpaceOnUse"><path d="M44 0H0V44" fill="none" stroke="rgba(40, 150, 140, .16)" stroke-width="1" /></pattern>
+                <filter id="route-glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                <radialGradient id="incident-glow"><stop offset="0" stop-color="#ff625f" stop-opacity=".5"/><stop offset="1" stop-color="#ff625f" stop-opacity="0"/></radialGradient>
+                <linearGradient id="block-fill" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8eaeb3" stop-opacity=".26"/><stop offset="1" stop-color="#2f666b" stop-opacity=".06"/></linearGradient>
+              </defs>
+              <rect class="map-grid" width="700" height="570" fill="url(#small-grid)"/>
+              <g class="city-blocks" fill="url(#block-fill)">
+                <path d="M61 88h98v68H61zM183 88h62v68h-62zM273 88h104v68H273zM406 88h72v68h-72zM506 88h130v68H506z"/>
+                <path d="M61 185h70v92H61zM160 185h130v92H160zM319 185h83v92h-83zM430 185h68v92h-68zM527 185h109v92H527z"/>
+                <path d="M61 306h121v68H61zM211 306h67v68h-67zM307 306h106v68h-106zM442 306h80v68h-80zM551 306h85v68h-85z"/>
+                <path d="M61 403h78v94H61zM168 403h109v94H168zM306 403h65v94h-65zM400 403h105v94H400zM534 403h102v94H534z"/>
+              </g>
+              <g class="side-streets">
+                <path d="M45 170H650M45 292H650M45 389H650M146 73V512M295 73V512M415 73V512M515 73V512"/>
+              </g>
+              <circle class="incident-halo" cx="464" cy="324" r="106" fill="url(#incident-glow)"/>
+              <circle class="incident-ring" cx="464" cy="324" r="61"/>
+              <circle class="incident-ring incident-ring-two" cx="464" cy="324" r="84"/>
+              <path class="route-shadow" d="M88 454C128 452 154 441 177 414C208 377 212 336 250 311C289 285 332 306 364 277C395 250 383 204 418 181C452 158 499 172 528 140C547 120 556 99 578 89"/>
+              <path class="route-line" id="route-line" pathLength="1" d="M88 454C128 452 154 441 177 414C208 377 212 336 250 311C289 285 332 306 364 277C395 250 383 204 418 181C452 158 499 172 528 140C547 120 556 99 578 89"/>
+              <path class="route-spark" pathLength="1" d="M88 454C128 452 154 441 177 414C208 377 212 336 250 311C289 285 332 306 364 277C395 250 383 204 418 181C452 158 499 172 528 140C547 120 556 99 578 89"/>
+              <g class="origin-marker" transform="translate(88 454)"><circle r="21"/><circle r="7"/><path d="M-31 0h12M19 0h12M0-31v12M0 19v12"/></g>
+              <g class="destination-marker" transform="translate(578 89)"><circle class="destination-pulse" r="35"/><path d="M0-25c-13 0-22 9-22 21 0 16 22 37 22 37S22 12 22-4C22-16 13-25 0-25Z"/><circle cy="-5" r="7"/></g>
+              <g class="incident-marker" transform="translate(464 324)"><path d="M0-18 20 17h-40Z"/><path d="M0-7v10M0 9v1"/></g>
+            </svg>
+            <div class="route-status glass-card">
+              <span class="route-status-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c0-5 4-5 4-9s-3-4-3-7M19 5c0 5-4 5-4 9s3 4 3 7"/><circle cx="6" cy="3" r="2"/><circle cx="18" cy="21" r="2"/></svg>
+              </span>
+              <p><small>OPTIMAL ROUTE</small><strong>Gate C · 04:12 ETA</strong></p>
+              <b>−38%</b>
+            </div>
+            <div class="incident-card glass-card">
+              <span>!</span>
+              <p><small>HIGH DENSITY DETECTED</small><strong>Rerouting around Zone 04</strong></p>
+            </div>
+          </div>
+          <div class="floating-chip chip-one"><span></span> Crowd feed live</div>
+          <div class="floating-chip chip-two"><b>12</b> active nodes</div>
+        </div>
       </section>
-      <footer>Prototype • Aggregated density only • No attendee identification</footer>
+
+      <section class="capabilities section-shell" id="interfaces">
+        <div class="section-heading">
+          <div><span class="section-kicker">ONE CONNECTED RESPONSE LOOP</span><h2>Everything the team needs.<br><em>Nothing in the way.</em></h2></div>
+          <p>From the first signal to the responder’s arrival, every interface shares the same live venue state.</p>
+        </div>
+
+        <div class="feature-grid">
+          <a class="feature-card feature-primary" href="/dashboard/">
+            <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15M15 6v15"/></svg></div>
+            <span class="feature-number">01</span>
+            <div><h3>Control centre</h3><p>Orchestrate incidents, compare gates and adapt routes as venue conditions change.</p></div>
+            <i>Open workspace <b>↗</b></i>
+          </a>
+          <a class="feature-card" href="/dashboard/arena/">
+            <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="8" r="2"/><path d="M3 20c0-4 2.7-6 6-6s6 2 6 6M15 15c3.5 0 6 1.7 6 5"/></svg></div>
+            <span class="feature-number">02</span>
+            <div><h3>2D crowd arena</h3><p>Watch continuous crowd agents turn movement into live pressure estimates.</p></div>
+            <i>Enter simulation <b>↗</b></i>
+          </a>
+          <a class="feature-card" href="/dashboard/medic/">
+            <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-4 7-10V5l-7-3-7 3v6c0 6 7 10 7 10Z"/><path d="M9 12h6M12 9v6"/></svg></div>
+            <span class="feature-number">03</span>
+            <div><h3>Responder view</h3><p>A focused, phone-first route from current assignment to patient arrival.</p></div>
+            <i>Open medic view <b>↗</b></i>
+          </a>
+          <a class="feature-card feature-wide" href="/dashboard/live/">
+            <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17c3-7 6-9 9-6s4 1 7-5"/><path d="m16 6 4-.5-.5 4"/><circle cx="4" cy="17" r="2"/></svg></div>
+            <span class="feature-number">04</span>
+            <div><h3>Live corridor flow</h3><p>See network quality and pedestrian pressure move through the emergency access graph.</p></div>
+            <i>View live flow <b>↗</b></i>
+          </a>
+          <a class="feature-card feature-wide" href="/docs">
+            <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14"/></svg></div>
+            <span class="feature-number">05</span>
+            <div><h3>Developer API</h3><p>Inspect every simulation, incident and network-aware routing endpoint.</p></div>
+            <i>Read the docs <b>↗</b></i>
+          </a>
+        </div>
+      </section>
+
+      <section class="proof-strip section-shell" aria-label="System principles">
+        <div><strong><span class="live-dot"></span> Real-time</strong><p>Shared state across every interface</p></div>
+        <div><strong>Explainable</strong><p>Every route cost is visible</p></div>
+        <div><strong>Resilient</strong><p>Safe fallback when providers fail</p></div>
+        <div><strong>Privacy-first</strong><p>Aggregated density, no attendee ID</p></div>
+      </section>
     </main>
+
+    <footer class="site-footer section-shell">
+      <a class="brand footer-brand" href="/" aria-label="RescueRoute AI home">
+        <img class="brand-mark" src="/dashboard/assets/rescueroute-logo.png?v=1" alt="" width="44" height="44">
+        <span class="brand-name">RESCUEROUTE <em>AI</em></span>
+      </a>
+      <p>Intelligent emergency routing for complex, crowded spaces.</p>
+    </footer>
   </body>
 </html>
