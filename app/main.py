@@ -1,3 +1,4 @@
+import base64
 import hmac
 import os
 
@@ -40,10 +41,17 @@ def persist_simulation(simulation_state: SimulationState) -> None:
 
 
 def verify_nokia_webhook(request: Request) -> None:
-    """Accept only Nokia callbacks carrying our configured Bearer sink credential."""
+    """Accept Nokia's documented PLAIN sink credential without exposing it.
+
+    QoD uses a bearer token, while Geofencing's ``PLAIN`` sink credential is
+    delivered as HTTP Basic authentication (identifier + secret).  Supporting
+    both keeps the receiver compatible with the two Nokia callback styles.
+    """
     expected = os.getenv("NAC_WEBHOOK_TOKEN", "").strip()
     provided = request.headers.get("authorization", "")
-    if not expected or not hmac.compare_digest(provided, f"Bearer {expected}"):
+    basic_value = base64.b64encode(f"rescueroute-ai:{expected}".encode("utf-8")).decode("ascii")
+    valid_credentials = (f"Bearer {expected}", f"Basic {basic_value}")
+    if not expected or not any(hmac.compare_digest(provided, candidate) for candidate in valid_credentials):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Nokia webhook credential")
 
 
