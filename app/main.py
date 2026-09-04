@@ -1,5 +1,6 @@
 import base64
 import hmac
+import logging
 import os
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, status
@@ -34,6 +35,7 @@ if saved_simulation:
 incident_service = IncidentService(camara, RoutingService(camara), store)
 emergency_agent = EmergencyAgent(incident_service)
 realtime = DashboardBroadcaster()
+logger = logging.getLogger(__name__)
 
 
 def persist_simulation(simulation_state: SimulationState) -> None:
@@ -52,6 +54,8 @@ def verify_nokia_webhook(request: Request) -> None:
     basic_value = base64.b64encode(f"rescueroute-ai:{expected}".encode("utf-8")).decode("ascii")
     valid_credentials = (f"Bearer {expected}", f"Basic {basic_value}")
     if not expected or not any(hmac.compare_digest(provided, candidate) for candidate in valid_credentials):
+        scheme = provided.split(" ", 1)[0] if provided else "missing"
+        logger.warning("Rejected Nokia webhook credential (scheme=%s, value_length=%d)", scheme, len(provided))
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Nokia webhook credential")
 
 
