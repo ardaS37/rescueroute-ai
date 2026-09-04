@@ -7,6 +7,7 @@ from app.models import (GeofenceEvent, Incident, IncidentProgress, IncidentStatu
     GateRouteOption, IncidentRouteHistory, Priority, RouteCostBreakdown, RouteDecision,
     RouteHistoryEntry, RouteSegment)
 from app.services.camara_simulator import CamaraSimulator
+from app.services.persistence import SQLiteStore
 from app.services.routing import CalculatedRoute, RouteNotFoundError, RoutingService
 
 
@@ -15,20 +16,47 @@ class IncidentNotFoundError(KeyError):
 
 
 class IncidentService:
-    def __init__(self, camara: CamaraSimulator, routing: RoutingService) -> None:
+    def __init__(self, camara: CamaraSimulator, routing: RoutingService, store: SQLiteStore | None = None) -> None:
         self.camara = camara
         self.routing = routing
+        self.store = store or SQLiteStore()
         self._incidents: dict[str, Incident] = {}
         self._decisions: dict[str, RouteDecision] = {}
         self._progress: dict[str, IncidentProgress] = {}
         self._history: dict[str, list[RouteHistoryEntry]] = {}
-        self._nokia_geofences: dict[str, tuple[str, str, str]] = {}
+        self._nokia_geofences = self.store.load_geofence_subscriptions()
+        self._restore_records()
+
+    def _restore_records(self) -> None:
+        for record in self.store.load_incidents():
+            incident = Incident.model_validate(record["incident"])
+            self._incidents[incident.id] = incident
+            if record["decision"]:
+                self._decisions[incident.id] = RouteDecision.model_validate(record["decision"])
+            if record["progress"]:
+                self._progress[incident.id] = IncidentProgress.model_validate(record["progress"])
+            self._history[incident.id] = [
+                RouteHistoryEntry.model_validate(entry) for entry in record["history"]
+            ]
+
+    def _persist(self, incident_id: str) -> None:
+        incident = self._incidents[incident_id]
+        decision = self._decisions.get(incident_id)
+        progress = self._progress.get(incident_id)
+        self.store.save_incident(
+            incident_id,
+            incident.model_dump(mode="json"),
+            decision.model_dump(mode="json") if decision else None,
+            progress.model_dump(mode="json") if progress else None,
+            [entry.model_dump(mode="json") for entry in self._history.get(incident_id, [])],
+        )
 
     def create(self, location: str, priority: Priority, description: str) -> Incident:
         incident = Incident(
             id=str(uuid4()), location=location, priority=priority, description=description
         )
         self._incidents[incident.id] = incident
+        self._persist(incident.id)
         return incident
 
     def get(self, incident_id: str) -> Incident:
@@ -85,6 +113,7 @@ class IncidentService:
                 api_calls.append(geofence)
             if subscription_id:
                 self._nokia_geofences[subscription_id] = (incident.id, team_id, selected_gate)
+                self.store.save_geofence_subscription(subscription_id, incident.id, team_id, selected_gate)
 
         incident.status = IncidentStatus.DISPATCHED
         segments = [
@@ -140,6 +169,7 @@ class IncidentService:
                 completed=False,
             ),
         )
+        self._persist(incident.id)
         return incident, decision
 
     def get_history(self, incident_id: str) -> IncidentRouteHistory:
@@ -147,6 +177,30 @@ class IncidentService:
         return IncidentRouteHistory(
             incident_id=incident_id, entries=self._history.get(incident_id, [])
         )
+
+    def affected_active_incidents(
+        self, *, zones: set[str] | None = None, corridor: tuple[str, str] | None = None
+    ) -> list[str]:
+        """Return dispatched incidents whose current route uses a changed area.
+
+        This deliberately filters changes before calling Nokia APIs again. A crowd update
+        in an unrelated zone should not create an unnecessary QoS session or reroute.
+        """
+        affected: list[str] = []
+        corridor_key = tuple(sorted(corridor)) if corridor else None
+        for incident_id, incident in self._incidents.items():
+            if incident.status != IncidentStatus.DISPATCHED or not self.camara.is_known_node(incident.location):
+                continue
+            decision = self._decisions.get(incident_id)
+            if not decision:
+                continue
+            route_zones = {segment.zone for segment in decision.segments if segment.zone}
+            route_corridors = {
+                tuple(sorted((segment.source, segment.destination))) for segment in decision.segments
+            }
+            if (zones and route_zones.intersection(zones)) or (corridor_key and corridor_key in route_corridors):
+                affected.append(incident_id)
+        return affected
 
     def record_geofence_event(
         self, incident_id: str, team_id: str, location: str, event_type: str
@@ -170,6 +224,7 @@ class IncidentService:
         if event_type == "reached_patient":
             progress.completed = True
             incident.status = IncidentStatus.RESOLVED
+        self._persist(incident_id)
         return progress
 
     def get_progress(self, incident_id: str) -> IncidentProgress:

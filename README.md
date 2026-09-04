@@ -21,7 +21,8 @@ At mass events, a route that is physically shorter can be slower or unsafe becau
 - Agentic orchestration: incident → reachable team → location → congestion → route scoring → QoS → geofence progress → reroute.
 - A LangGraph + Gemini decision agent that creates a bounded CAMARA tool plan; the routing engine validates every action and retains a deterministic fallback.
 - A shared live 2D crowd arena that sends aggregated density to the backend routing engine, including a Mataf/Kaaba/Mas'a view for the Hajj venue.
-- WebSocket updates for dispatch, reroute, simulation state, and geofence progress.
+- WebSocket updates for dispatch, automatic reroute, simulation state, and geofence progress.
+- SQLite-backed incident, route-history, geofence-progress, and simulation-state recovery across Docker restarts.
 
 ## Nokia Network as Code / CAMARA integration
 
@@ -83,6 +84,8 @@ GEMINI_MODEL=gemini-3.6-flash
 
 Keep `NAC_LIVE_ENABLED=false` for an entirely deterministic demo. Enable it to use Nokia simulator signals; fallback data will be used automatically for unavailable or rate-limited calls.
 
+`GET /agent/status` reports whether the deployed instance has a Gemini key configured, without exposing the key. If it reports `deterministic_fallback`, add `GEMINI_API_KEY` and `GEMINI_MODEL=gemini-3.6-flash` to the VPS `.env`, then recreate the app container.
+
 ## API highlights
 
 - `POST /incidents` — create an incident.
@@ -96,10 +99,11 @@ Keep `NAC_LIVE_ENABLED=false` for an entirely deterministic demo. Enable it to u
 - `POST /webhooks/nokia/geofence` — Nokia Geofencing callback receiver.
 - `GET /simulation/state` — current crowd, network load/source, and QoS state.
 - `GET /ws/dashboard` — WebSocket stream for both user interfaces.
+- `GET /agent/status` — safe Gemini/fallback runtime-readiness status.
 
 ## Deployment
 
-The project runs with Docker Compose and Caddy. Both the application and reverse proxy use `restart: unless-stopped`; Docker is enabled on boot, so the project starts automatically after a VPS restart.
+The project runs with Docker Compose and Caddy. Both the application and reverse proxy use `restart: unless-stopped`; Docker is enabled on boot, so the project starts automatically after a VPS restart. A named Docker volume keeps the SQLite operational audit data across app-container recreation.
 
 ```bash
 docker compose up -d --build
@@ -112,4 +116,4 @@ docker compose ps
 py -m unittest discover -s tests -v
 ```
 
-The test suite covers routing, deterministic scenarios, fallback-team assignment, route history, WebSocket delivery, and Nokia Geofencing callback-to-incident progress.
+The test suite covers routing, deterministic scenarios, fallback-team assignment, automatic-reroute filtering, persistent route history, WebSocket delivery, and Nokia Geofencing callback-to-incident progress. GitHub Actions runs this suite for every push and pull request.

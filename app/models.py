@@ -108,6 +108,12 @@ class HealthResponse(BaseModel):
     service: str = "rescueroute-ai-backend"
 
 
+class AgentRuntimeStatus(BaseModel):
+    provider: Literal["gemini", "deterministic_fallback"]
+    model: str | None = None
+    configured: bool
+
+
 class ConfigureSimulationRequest(BaseModel):
     template: Literal["stadium_match", "music_festival", "pilgrimage_flow"] = "stadium_match"
     seed: int = Field(default=42, ge=0, le=2_147_483_647)

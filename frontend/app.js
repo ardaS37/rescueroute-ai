@@ -1,5 +1,5 @@
 const api = "";
-let state = null, layout = null, incident = null, decision = null, routeHistory = [], demoRun = 0;
+let state = null, layout = null, incident = null, decision = null, routeHistory = [], demoRun = 0, agentRuntime = null;
 let liveSocket = null, reconnectTimer = null;
 const $ = (id) => document.getElementById(id);
 
@@ -57,7 +57,7 @@ function sourceLabel(source) { return source === "live" ? "Live Nokia" : source 
 function formatActivity(message) { const source = apiSource(message); return `<em class="api-badge ${source}">${sourceLabel(source)}</em> ${escapeHtml(message)}`; }
 function renderApiStatus() {
   const calls = decision?.api_calls || [];
-  if (!calls.length) { $("api-status").innerHTML = '<em class="api-badge simulation">Simulation ready</em>'; return; }
+  if (!calls.length) { const agentLabel = agentRuntime?.configured ? `Gemini ready · ${agentRuntime.model}` : "AI fallback policy"; $("api-status").innerHTML = `<em class="api-badge simulation">Simulation ready</em><em class="api-badge agent">${agentLabel}</em>`; return; }
   const sources = ["agent", "live", "fallback", "simulation"].filter(source => calls.some(call => apiSource(call) === source));
   $("api-status").innerHTML = sources.map(source => `<em class="api-badge ${source}">${sourceLabel(source)}</em>`).join("");
 }
@@ -162,11 +162,7 @@ async function runFullDemo() {
     if (disruption && !state.closed_corridors.includes(disruptionKey)) {
       state = await request("/simulation/events/corridor", { method:"POST", body:JSON.stringify({ source:disruption.source, destination:disruption.destination, closed:true }) });
       temporaryClosure = disruption;
-      render(); activity.push(`Live disruption: ${label(disruption.source)} ↔ ${label(disruption.destination)} closed`); log(activity);
-      const reroute = await request(`/incidents/${incident.id}/recalculate-route`, { method:"POST" });
-      incident = reroute.incident; decision = reroute.decision; await refreshHistory(); render();
-      activity.push(`Route recalculated: ${label(decision.selected_gate)}`, ...decision.api_calls); log(activity);
-      $("decision").textContent = decision.explanation;
+      render(); activity.push(`Live disruption: ${label(disruption.source)} ↔ ${label(disruption.destination)} closed`, "Automatic reroute requested for the affected route"); log(activity);
       await pause(650);
     } else if (disruption) {
       activity.push(`Auto reroute skipped: ${label(disruption.source)} ↔ ${label(disruption.destination)} was already closed`); log(activity);
@@ -200,14 +196,15 @@ async function createIncident() {
     const result = await request(`/incidents/${incident.id}/dispatch`, { method:"POST" }); incident = result.incident; decision = result.decision; await refreshHistory(); render(); log(decision.api_calls); $("decision").textContent = decision.explanation;
   } catch (error) { $("decision").textContent = error.message; }
 }
-async function advanceTime() { try { state = await request("/simulation/advance", { method:"POST", body:JSON.stringify({ minutes:10 }) }); render(); if (incident) await reroute("Crowd conditions changed; route recalculated."); } catch (error) { $("decision").textContent = error.message; } }
+async function advanceTime() { try { state = await request("/simulation/advance", { method:"POST", body:JSON.stringify({ minutes:10 }) }); render(); if (incident) addLiveActivity("Crowd update submitted; affected active routes reroute automatically."); } catch (error) { $("decision").textContent = error.message; } }
 async function reroute(message) { const result = await request(`/incidents/${incident.id}/recalculate-route`, { method:"POST" }); incident = result.incident; decision = result.decision; await refreshHistory(); render(); log([message, ...decision.api_calls]); $("decision").textContent = decision.explanation; }
-async function toggleCorridor() { try { const [source,destination] = $("corridor").value.split("|"); state = await request("/simulation/events/corridor", { method:"POST", body:JSON.stringify({source,destination,closed:true}) }); render(); if (incident) await reroute(`${label(source)} corridor closed; agent rerouted the team.`); else $("decision").textContent = "Corridor closed. Create an emergency to see its routing impact."; } catch (error) { $("decision").textContent = error.message; } }
+async function toggleCorridor() { try { const [source,destination] = $("corridor").value.split("|"); state = await request("/simulation/events/corridor", { method:"POST", body:JSON.stringify({source,destination,closed:true}) }); render(); if (incident) addLiveActivity(`${label(source)} corridor closed; affected active routes reroute automatically.`); else $("decision").textContent = "Corridor closed. Create an emergency to see its routing impact."; } catch (error) { $("decision").textContent = error.message; } }
 async function markGate() { if (!decision || !incident) return; try { const progress = await request(`/incidents/${incident.id}/events/geofence`, { method:"POST", body:JSON.stringify({team_id:decision.team_id,location:decision.selected_gate,event_type:"entered_selected_gate"}) }); log(["Geofencing: team entered selected gate", ...progress.events.map(e => `${e.event_type}: ${label(e.location)}`)]); } catch (error) { $("decision").textContent = error.message; } }
 async function markArrival() { if (!decision || !incident) return; try { const progress = await request(`/incidents/${incident.id}/events/geofence`, { method:"POST", body:JSON.stringify({team_id:decision.team_id,location:incident.location,event_type:"reached_patient"}) }); incident.status = progress.completed ? "resolved" : incident.status; render(); log(["Geofencing: team reached patient", ...progress.events.map(e => `${e.event_type}: ${label(e.location)}`)]); } catch (error) { $("decision").textContent = error.message; } }
 $("apply-scenario").addEventListener("click", applyRecordedScenario);
 $("run-full-demo").addEventListener("click", runFullDemo);
 $("load-scenario").addEventListener("click", loadScenario); $("create-incident").addEventListener("click", createIncident); $("advance-time").addEventListener("click", advanceTime); $("toggle-corridor").addEventListener("click", toggleCorridor);
 $("mark-gate").addEventListener("click", markGate); $("mark-arrival").addEventListener("click", markArrival);
+async function loadAgentRuntime() { try { agentRuntime = await request("/agent/status"); renderApiStatus(); } catch { agentRuntime = null; } }
 connectLiveUpdates();
-loadScenario();
+loadAgentRuntime().finally(loadScenario);

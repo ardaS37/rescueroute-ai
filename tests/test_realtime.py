@@ -1,8 +1,9 @@
 import unittest
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import app, camara
 from app.services.realtime import DashboardBroadcaster
 
 
@@ -50,3 +51,23 @@ class WebSocketEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(event["type"], "simulation_state")
         self.assertEqual(event["state"]["simulated_minutes"], 5)
+
+    def test_changed_active_corridor_triggers_backend_reroute(self) -> None:
+        with patch.object(camara.nokia, "enabled", False), TestClient(app) as client:
+            client.post("/simulation/configure", json={
+                "template": "stadium_match", "seed": 42, "crowd_pattern": "balanced"
+            })
+            incident = client.post("/incidents", json={
+                "location": "main_stage", "priority": "critical", "description": "Auto reroute test"
+            }).json()
+            dispatch = client.post(f"/incidents/{incident['id']}/dispatch").json()
+            segment = dispatch["decision"]["segments"][1]
+            response = client.post("/simulation/events/corridor", json={
+                "source": segment["source"], "destination": segment["destination"], "closed": True
+            })
+            history = client.get(f"/incidents/{incident['id']}/history").json()["entries"]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(history), 2)
+        self.assertEqual(history[-1]["event_type"], "reroute")
+        self.assertIn("Automatic reroute", history[-1]["trigger"])

@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -6,6 +7,7 @@ from app.models import Priority
 from app.services.camara_simulator import CamaraSimulator
 from app.services.emergency_agent import EmergencyAgent
 from app.services.incident_service import IncidentService
+from app.services.persistence import SQLiteStore
 from app.services.routing import RoutingService
 
 
@@ -137,6 +139,38 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(history.entries[1].trigger, "Gate C corridor closed")
         self.assertEqual(history.entries[1].previous_route, first.route)
         self.assertEqual(history.entries[1].route, second.route)
+
+    def test_active_incident_filter_only_selects_routes_using_changed_zone(self) -> None:
+        camara = CamaraSimulator()
+        service = IncidentService(camara, RoutingService(camara))
+        incident = service.create("main_stage", Priority.HIGH, "Automatic reroute test")
+        _, decision = service.dispatch(incident.id)
+        changed_zone = next(segment.zone for segment in decision.segments if segment.zone)
+
+        self.assertEqual(
+            service.affected_active_incidents(zones={changed_zone}), [incident.id]
+        )
+        self.assertEqual(service.affected_active_incidents(zones={"not_a_venue_zone"}), [])
+
+    def test_incident_history_and_progress_survive_service_restart(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = os.path.join(directory, "rescueroute.db")
+            camara = CamaraSimulator()
+            first_store = SQLiteStore(database_path)
+            service = IncidentService(camara, RoutingService(camara), first_store)
+            incident = service.create("main_stage", Priority.HIGH, "Persistence test")
+            _, decision = service.dispatch(incident.id)
+            service.record_geofence_event(
+                incident.id, decision.team_id, decision.selected_gate, "entered_selected_gate"
+            )
+
+            restored_store = SQLiteStore(database_path)
+            restored = IncidentService(camara, RoutingService(camara), restored_store)
+            self.assertEqual(restored.get(incident.id).description, "Persistence test")
+            self.assertEqual(len(restored.get_history(incident.id).entries), 1)
+            self.assertEqual(restored.get_progress(incident.id).last_location, decision.selected_gate)
+            restored_store.close()
+            first_store.close()
 
 
 if __name__ == "__main__":

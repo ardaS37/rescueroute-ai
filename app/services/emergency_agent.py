@@ -13,7 +13,7 @@ from typing import TypedDict
 import httpx
 from langgraph.graph import END, START, StateGraph
 
-from app.models import AgentTrace, DispatchResponse, Priority
+from app.models import AgentRuntimeStatus, AgentTrace, DispatchResponse, Priority
 from app.services.incident_service import IncidentService
 
 
@@ -56,6 +56,15 @@ class EmergencyAgent:
 
     def trace(self, incident_id: str) -> AgentTrace:
         return self._traces[incident_id]
+
+    @staticmethod
+    def runtime_status() -> AgentRuntimeStatus:
+        configured = bool(os.getenv("GEMINI_API_KEY", "").strip())
+        return AgentRuntimeStatus(
+            provider="gemini" if configured else "deterministic_fallback",
+            model=os.getenv("GEMINI_MODEL", "gemini-3.6-flash") if configured else None,
+            configured=configured,
+        )
 
     def _plan_network_tools(self, state: AgentState) -> dict[str, object]:
         incident = self.incidents.get(state["incident_id"])

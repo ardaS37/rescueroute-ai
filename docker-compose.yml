@@ -6,6 +6,10 @@ services:
       - .env
     expose:
       - "8000"
+    environment:
+      RESCUEROUTE_DB_PATH: /data/rescueroute.db
+    volumes:
+      - rescueroute_data:/data
 
   caddy:
     image: caddy:2.10-alpine
@@ -22,5 +26,6 @@ services:
       - caddy_config:/config
 
 volumes:
+  rescueroute_data:
   caddy_data:
   caddy_config:

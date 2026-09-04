@@ -4,10 +4,11 @@ from fastapi.staticfiles import StaticFiles
 
 from app.models import (AdvanceSimulationRequest, ApplyScenarioRequest, ConfigureSimulationRequest, CorridorStatusRequest,
     CreateIncidentRequest, DispatchResponse, GeofenceEventRequest, HealthResponse, Incident,
-    AgentTrace, IncidentProgress, IncidentRouteHistory, SimulationState,
+    AgentRuntimeStatus, AgentTrace, IncidentProgress, IncidentRouteHistory, SimulationState,
     UpdateCongestionRequest, VenueLayout, VenueTemplateSummary)
 from app.services.camara_simulator import CamaraSimulator
 from app.services.incident_service import IncidentNotFoundError, IncidentService
+from app.services.persistence import SQLiteStore
 from app.services.emergency_agent import EmergencyAgent
 from app.services.routing import RouteNotFoundError, RoutingService
 from app.services.realtime import DashboardBroadcaster
@@ -21,10 +22,40 @@ app = FastAPI(
     description="Network-aware emergency routing prototype for crowded events.",
 )
 
+store = SQLiteStore()
 camara = CamaraSimulator()
-incident_service = IncidentService(camara, RoutingService(camara))
+saved_simulation = store.load_state("simulation")
+if saved_simulation:
+    camara.restore_state(SimulationState.model_validate(saved_simulation))
+incident_service = IncidentService(camara, RoutingService(camara), store)
 emergency_agent = EmergencyAgent(incident_service)
 realtime = DashboardBroadcaster()
+
+
+def persist_simulation(simulation_state: SimulationState) -> None:
+    store.save_state("simulation", simulation_state.model_dump(mode="json"))
+
+
+async def reroute_affected_incidents(
+    trigger: str, *, zones: set[str] | None = None, corridor: tuple[str, str] | None = None
+) -> int:
+    """Automatically reroute only active teams whose existing route was affected."""
+    rerouted = 0
+    for incident_id in incident_service.affected_active_incidents(zones=zones, corridor=corridor):
+        try:
+            response = emergency_agent.dispatch(incident_id, trigger=trigger)
+        except RouteNotFoundError as error:
+            await realtime.broadcast({
+                "type": "reroute_alert", "incident_id": incident_id,
+                "message": f"Automatic reroute unavailable: {error}",
+            })
+            continue
+        await realtime.broadcast({
+            "type": "agent_trace", "trace": emergency_agent.trace(incident_id).model_dump(mode="json")
+        })
+        await realtime.broadcast({"type": "reroute", "response": response.model_dump(mode="json"), "automatic": True})
+        rerouted += 1
+    return rerouted
 
 
 @app.get("/", include_in_schema=False)
@@ -35,6 +66,12 @@ def home() -> FileResponse:
 @app.get("/health", response_model=HealthResponse, tags=["system"])
 def health() -> HealthResponse:
     return HealthResponse()
+
+
+@app.get("/agent/status", response_model=AgentRuntimeStatus, tags=["AI agent"])
+def agent_status() -> AgentRuntimeStatus:
+    """Expose readiness without ever returning the Gemini API key."""
+    return emergency_agent.runtime_status()
 
 
 @app.post("/incidents", response_model=Incident, status_code=status.HTTP_201_CREATED, tags=["incidents"])
@@ -169,6 +206,7 @@ def get_simulation_state() -> SimulationState:
 @app.post("/simulation/configure", response_model=SimulationState, tags=["simulation"])
 async def configure_simulation(payload: ConfigureSimulationRequest) -> SimulationState:
     simulation_state = camara.configure(payload.template, payload.seed, payload.crowd_pattern)
+    persist_simulation(simulation_state)
     await realtime.broadcast({"type": "simulation_state", "state": simulation_state.model_dump(mode="json")})
     return simulation_state
 
@@ -177,6 +215,7 @@ async def configure_simulation(payload: ConfigureSimulationRequest) -> Simulatio
 async def apply_recorded_scenario(payload: ApplyScenarioRequest) -> SimulationState:
     """Run a deterministic fallback scenario when live network APIs are unavailable."""
     simulation_state = camara.apply_scenario(payload.scenario)
+    persist_simulation(simulation_state)
     await realtime.broadcast({"type": "simulation_state", "state": simulation_state.model_dump(mode="json")})
     return simulation_state
 
@@ -184,7 +223,12 @@ async def apply_recorded_scenario(payload: ApplyScenarioRequest) -> SimulationSt
 @app.post("/simulation/advance", response_model=SimulationState, tags=["simulation"])
 async def advance_simulation(payload: AdvanceSimulationRequest) -> SimulationState:
     simulation_state = camara.advance(payload.minutes)
+    persist_simulation(simulation_state)
     await realtime.broadcast({"type": "simulation_state", "state": simulation_state.model_dump(mode="json")})
+    await reroute_affected_incidents(
+        f"Automatic reroute: crowd conditions changed after {payload.minutes} simulated minutes",
+        zones=set(simulation_state.zone_congestion),
+    )
     return simulation_state
 
 
@@ -192,7 +236,12 @@ async def advance_simulation(payload: AdvanceSimulationRequest) -> SimulationSta
 async def update_congestion(payload: UpdateCongestionRequest) -> SimulationState:
     try:
         simulation_state = camara.update_congestion(payload.zone, payload.density)
+        persist_simulation(simulation_state)
         await realtime.broadcast({"type": "simulation_state", "state": simulation_state.model_dump(mode="json")})
+        await reroute_affected_incidents(
+            f"Automatic reroute: congestion changed in {payload.zone.replace('_', ' ')}",
+            zones={payload.zone},
+        )
         return simulation_state
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error))
@@ -202,7 +251,13 @@ async def update_congestion(payload: UpdateCongestionRequest) -> SimulationState
 async def update_corridor(payload: CorridorStatusRequest) -> SimulationState:
     try:
         simulation_state = camara.set_corridor_status(payload.source, payload.destination, payload.closed)
+        persist_simulation(simulation_state)
         await realtime.broadcast({"type": "simulation_state", "state": simulation_state.model_dump(mode="json")})
+        action = "closed" if payload.closed else "reopened"
+        await reroute_affected_incidents(
+            f"Automatic reroute: {payload.source.replace('_', ' ')} to {payload.destination.replace('_', ' ')} {action}",
+            corridor=(payload.source, payload.destination),
+        )
         return simulation_state
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error))

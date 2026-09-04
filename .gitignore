@@ -5,6 +5,7 @@
 # Python and tooling output
 __pycache__/
 *.py[cod]
+*.db
 .pytest_cache/
 .coverage
 

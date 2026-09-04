@@ -115,6 +115,23 @@ class CamaraSimulator:
             network_load=self._network_load, network_source=self._network_source,
             qos_active=self._qos_active)
 
+    def restore_state(self, state: SimulationState) -> SimulationState:
+        """Restore the last operational snapshot after a controlled container restart."""
+        self.configure(state.template, state.seed, state.crowd_pattern)
+        self._minutes = state.simulated_minutes
+        self._zone_congestion = dict(state.zone_congestion)
+        self._crowd_distribution = dict(state.crowd_distribution)
+        self._closed_corridors = {
+            tuple(sorted(corridor.split(" <-> ")))
+            for corridor in state.closed_corridors if " <-> " in corridor
+        }
+        self._active_scenario = state.active_scenario
+        self._device_status = dict(state.device_status)
+        self._network_load = state.network_load
+        self._network_source = state.network_source
+        self._qos_active = state.qos_active
+        return self.state()
+
     def templates(self) -> list[VenueTemplateSummary]:
         return [VenueTemplateSummary(key=t.key, title=t.title, description=t.description, gates=sorted(t.gates),
             locations=sorted(t.graph), zones=list(t.zones)) for t in TEMPLATES.values()]
