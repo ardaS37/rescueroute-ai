@@ -1,10 +1,16 @@
+import os
 import unittest
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from app.main import app, camara
+from app.main import app, workspaces
 from app.services.realtime import DashboardBroadcaster
+
+def default_workspace():
+    """The workspace every caller shares while no access code is configured."""
+    return workspaces.get("default")
+
 
 
 class FakeWebSocket:
@@ -53,7 +59,8 @@ class WebSocketEndpointTests(unittest.TestCase):
         self.assertEqual(event["state"]["simulated_minutes"], 5)
 
     def test_changed_active_corridor_triggers_backend_reroute(self) -> None:
-        with patch.object(camara.nokia, "enabled", False), TestClient(app) as client:
+        with patch.dict(os.environ, {"GEMINI_API_KEY": ""}, clear=False), \
+             patch.object(default_workspace().camara.nokia, "enabled", False), TestClient(app) as client:
             client.post("/simulation/configure", json={
                 "template": "stadium_match", "seed": 42, "crowd_pattern": "balanced"
             })

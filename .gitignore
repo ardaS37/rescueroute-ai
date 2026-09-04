@@ -14,3 +14,8 @@ dist/
 build/
 .DS_Store
 .vscode/
+
+# Internal demo script and pulled production credentials - never commit.
+PITCH_DEMO.md
+.env.server
+node_modules/

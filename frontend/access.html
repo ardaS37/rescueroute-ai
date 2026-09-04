@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RescueRoute AI - Access</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100dvh;
+        display: grid; place-items: center; padding: 24px;
+        background: radial-gradient(120% 120% at 50% 0%, #1d4a43 0%, #0f2b26 60%);
+        color: #eef6f3;
+        font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      main {
+        width: 100%; max-width: 380px;
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(255,255,255,.14);
+        border-radius: 16px; padding: 28px 26px;
+        backdrop-filter: blur(6px);
+      }
+      .eyebrow { font-size: .66rem; letter-spacing: .18em; opacity: .72; }
+      h1 { margin: 6px 0 4px; font-size: 1.35rem; }
+      p { margin: 0 0 20px; font-size: .88rem; opacity: .78; }
+      label { display: block; font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; opacity: .8; margin-bottom: 6px; }
+      input {
+        width: 100%; font: inherit; letter-spacing: .12em;
+        padding: 13px 14px; min-height: 50px;
+        border-radius: 10px; border: 1px solid rgba(255,255,255,.24);
+        background: rgba(0,0,0,.22); color: #eef6f3;
+      }
+      input:focus { outline: 2px solid #4fbfa8; outline-offset: 1px; }
+      button {
+        width: 100%; margin-top: 14px; font: inherit; font-weight: 650;
+        min-height: 50px; border-radius: 10px; border: 0;
+        background: #4fbfa8; color: #06231e; cursor: pointer;
+      }
+      button:hover { background: #63d3bb; }
+      .error {
+        margin: 0 0 16px; padding: 10px 12px; border-radius: 9px;
+        background: rgba(214,96,96,.18); border: 1px solid rgba(214,96,96,.4);
+        color: #ffd9d9; font-size: .84rem; display: none;
+      }
+      footer { margin-top: 18px; font-size: .72rem; opacity: .58; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="eyebrow">RESCUEROUTE AI</span>
+      <h1>Emergency routing demo</h1>
+      <p>This environment is restricted. Enter the access code you were given.</p>
+      <p class="error" id="error" role="alert">That access code was not recognised.</p>
+      <form method="post" action="/access">
+        <label for="code">Access code</label>
+        <input id="code" name="code" type="password" autocomplete="one-time-code"
+               autofocus required aria-describedby="error">
+        <button type="submit">Enter</button>
+      </form>
+      <footer>Each visitor gets an isolated simulation. Aggregated density only; no attendee identification.</footer>
+    </main>
+    <script>
+      if (new URLSearchParams(location.search).has("error")) {
+        document.getElementById("error").style.display = "block";
+      }
+    </script>
+  </body>
+</html>

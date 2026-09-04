@@ -11,6 +11,12 @@ class IncidentStatus(str, Enum):
     REPORTED = "reported"
     DISPATCHED = "dispatched"
     RESOLVED = "resolved"
+    # Every team is committed elsewhere; the incident is waiting for one to free
+    # up and is dispatched automatically when that happens.
+    QUEUED = "queued"
+    # Set when the loaded venue no longer contains the incident location, so a
+    # stale incident can never be re-dispatched against a different graph.
+    CANCELLED = "cancelled"
 
 
 class Priority(str, Enum):
@@ -103,6 +109,20 @@ class IncidentRouteHistory(BaseModel):
     entries: list[RouteHistoryEntry]
 
 
+class TeamStatus(str, Enum):
+    AVAILABLE = "available"
+    ASSIGNED = "assigned"
+    UNREACHABLE = "unreachable"
+
+
+class TeamState(BaseModel):
+    id: str
+    name: str
+    location: str
+    status: TeamStatus
+    incident_id: str | None = None
+
+
 class HealthResponse(BaseModel):
     status: Literal["ok"] = "ok"
     service: str = "rescueroute-ai-backend"
@@ -141,6 +161,10 @@ class CorridorStatusRequest(BaseModel):
     source: str = Field(min_length=1)
     destination: str = Field(min_length=1)
     closed: bool = True
+    restricted: bool = Field(
+        default=False,
+        description="Keep the corridor walkable but add controlled-access delay. Ignored when closed.",
+    )
 
 
 class GeofenceEventRequest(BaseModel):
@@ -177,6 +201,8 @@ class VenueNode(BaseModel):
     x: int
     y: int
     kind: Literal["gate", "landmark"]
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class VenueEdge(BaseModel):
@@ -204,6 +230,7 @@ class SimulationState(BaseModel):
     zone_congestion: dict[str, float]
     crowd_distribution: dict[str, int]
     closed_corridors: list[str]
+    restricted_corridors: list[str] = []
     active_scenario: str = "custom"
     device_status: dict[str, bool]
     network_load: float = 0.0

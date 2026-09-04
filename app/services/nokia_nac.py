@@ -107,8 +107,15 @@ class NokiaNaCClient:
         )
         return str(response.get("sessionId") or response.get("id") or "session requested")
 
-    def create_geofence_subscription(self, phone_number: str) -> str:
-        """Register the public RescueRoute callback with Nokia's geofencing API."""
+    def create_geofence_subscription(
+        self, phone_number: str, latitude: float, longitude: float, radius_m: int
+    ) -> str:
+        """Watch the entry the team was actually routed to.
+
+        The area used to be a fixed circle in Doha regardless of venue or gate,
+        so an ``area-entered`` callback carried no information about the route
+        it was meant to confirm.  It is now the selected gate's real position.
+        """
         if not self.webhook_token:
             raise NokiaNaCError("NAC_WEBHOOK_TOKEN is required for authenticated geofencing callbacks.")
         response = self._post(
@@ -124,8 +131,8 @@ class NokiaNaCClient:
                         "device": {"phoneNumber": phone_number},
                         "area": {
                             "areaType": "CIRCLE",
-                            "center": {"latitude": 25.2854, "longitude": 51.5321},
-                            "radius": 120,
+                            "center": {"latitude": latitude, "longitude": longitude},
+                            "radius": radius_m,
                         },
                     },
                     "initialEvent": True,

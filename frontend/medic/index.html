@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f2b26">
+    <title>RescueRoute AI - Medical Team</title>
+    <link rel="stylesheet" href="styles.css?v=2">
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <a href="/" aria-label="Back to the RescueRoute AI home page" title="Home">←</a>
+        <div>
+          <span class="eyebrow">RESCUEROUTE AI</span>
+          <h1>Medical team</h1>
+        </div>
+      </div>
+      <label class="team-pick">
+        <span class="sr-only">Responding team</span>
+        <select id="team" aria-label="Responding team"></select>
+      </label>
+    </header>
+
+    <p id="connection" class="connection idle" role="status" aria-live="polite">Connecting…</p>
+
+    <main>
+      <section id="assignment" class="assignment idle" aria-live="polite">
+        <h2 id="headline">No active assignment</h2>
+        <p id="subline">Standing by.</p>
+        <div id="detail"></div>
+      </section>
+
+      <section class="context">
+        <div><span>You are at</span><strong id="team-location">-</strong></div>
+        <div><span>Venue</span><strong id="venue">-</strong></div>
+        <div id="network" class="network"></div>
+      </section>
+    </main>
+
+    <footer class="actions">
+      <button id="mark-gate" disabled>Waiting for an assignment</button>
+      <button id="mark-arrival" class="primary" disabled>I have reached the patient</button>
+    </footer>
+
+    <script src="app.js?v=2"></script>
+  </body>
+</html>

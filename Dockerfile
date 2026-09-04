@@ -13,4 +13,8 @@ COPY frontend ./frontend
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+# The app is only reachable through Caddy on the compose network (expose, not
+# ports), so trusting its forwarding headers is what makes per-client rate
+# limiting see the real caller instead of the proxy address.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", \
+     "--proxy-headers", "--forwarded-allow-ips", "*"]

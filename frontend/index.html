@@ -4,13 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>RescueRoute AI - Control Centre</title>
-    <link rel="stylesheet" href="styles.css?v=3">
-    <link rel="stylesheet" href="theme-fixes.css?v=1">
+    <link rel="stylesheet" href="styles.css?v=5">
+    <link rel="stylesheet" href="theme-fixes.css?v=3">
   </head>
   <body>
     <header class="topbar">
-      <div><span class="eyebrow">RESCUEROUTE AI</span><h1>Emergency control centre</h1></div>
-      <div class="connection"><a href="arena/">Open free 2D arena</a><a href="live/">Open live crowd flow</a><span class="pulse"></span><span id="connection-status">Live simulation</span></div>
+      <div><nav class="site-nav"><a href="/">← Home</a></nav><span class="eyebrow">RESCUEROUTE AI</span><h1>Emergency control centre</h1></div>
+      <div class="connection"><a href="medic/">Open medic view</a><a href="arena/">Open free 2D arena</a><a href="live/">Open live crowd flow</a><span class="pulse"></span><span id="connection-status">Live simulation</span></div>
     </header>
     <main>
       <section class="controls" aria-label="Simulation controls">
@@ -30,6 +30,7 @@
         <div><span>Route distance</span><strong id="distance-cost">-</strong></div>
         <div><span>Crowd penalty</span><strong id="crowd-cost">-</strong></div>
         <div><span>Network penalty</span><strong id="network-cost">-</strong></div>
+        <div><span>Access penalty</span><strong id="access-cost">-</strong></div>
         <div class="api-status"><span>CAMARA data sources</span><div id="api-status"><em class="api-badge simulation">Simulation ready</em></div></div>
         <div class="gate-options"><span>Gate comparison</span><div id="gate-options">Create an emergency to compare entries.</div></div>
         <div class="progress-actions"><span>Geofence progress</span><div><button id="mark-gate">Mark gate entered</button><button id="mark-arrival">Mark patient reached</button></div></div>
@@ -50,6 +51,10 @@
         <aside class="side-panel">
           <div class="panel-heading"><div><span class="eyebrow">NETWORK INTELLIGENCE</span><h2>Crowd zones</h2></div></div>
           <div id="zone-list" class="zone-list" aria-live="polite"></div>
+          <div class="team-panel">
+            <span class="eyebrow">RESPONSE TEAMS</span>
+            <div id="team-list" class="team-list" aria-live="polite">Loading roster…</div>
+          </div>
           <div class="disruption">
             <span class="eyebrow">LIVE DISRUPTION</span>
             <label>Corridor <select id="corridor"></select></label>
@@ -60,6 +65,6 @@
       </section>
       <p id="decision" class="decision" aria-live="polite">Load a scenario, then create an emergency to see the AI decision.</p>
     </main>
-    <script src="app.js"></script>
+    <script src="app.js?v=4"></script>
   </body>
 </html>

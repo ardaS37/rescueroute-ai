@@ -1,5 +1,6 @@
 const api = "";
 let state = null, layout = null, incident = null, decision = null, routeHistory = [], demoRun = 0, agentRuntime = null;
+let teams = [];
 let liveSocket = null, reconnectTimer = null;
 const $ = (id) => document.getElementById(id);
 
@@ -18,17 +19,31 @@ async function handleLiveEvent(event) {
     if (!layout || layout.template !== state.template) layout = await request("/simulation/layout");
     render();
     if (event.type === "simulation_state") addLiveActivity("Live simulation update received");
+    refreshTeams();
     return;
   }
   if ((event.type === "dispatch" || event.type === "reroute") && incident?.id === event.response.incident.id) {
     incident = event.response.incident; decision = event.response.decision;
     await refreshHistory(); render();
     addLiveActivity(event.type === "reroute" ? "Live reroute received" : "Live dispatch received");
+    refreshTeams();
     return;
   }
   if (event.type === "geofence_progress" && incident?.id === event.incident.id) {
     incident = event.incident; render();
     addLiveActivity(`Live geofence update: ${event.progress.last_location}`);
+    refreshTeams();
+    return;
+  }
+  if (event.type === "dispatch" && event.from_queue) {
+    addLiveActivity("Queued incident dispatched: a response team became available");
+    refreshTeams();
+    return;
+  }
+  if (event.type === "incidents_cancelled" && incident && event.incident_ids.includes(incident.id)) {
+    incident = decision = null; routeHistory = []; render();
+    addLiveActivity("Active incident cancelled: its location is not part of the loaded venue");
+    $("decision").textContent = "The venue changed, so the active incident was cancelled. Create a new emergency.";
   }
 }
 function connectLiveUpdates() {
@@ -61,6 +76,14 @@ function renderApiStatus() {
   const sources = ["agent", "live", "fallback", "simulation"].filter(source => calls.some(call => apiSource(call) === source));
   $("api-status").innerHTML = sources.map(source => `<em class="api-badge ${source}">${sourceLabel(source)}</em>`).join("");
 }
+async function refreshTeams() {
+  try { teams = await request("/teams"); renderTeams(); } catch { teams = []; }
+}
+function renderTeams() {
+  $("team-list").innerHTML = teams.length
+    ? teams.map(team => `<div class="team ${team.status}"><b>${escapeHtml(team.name)}</b><span>${team.status}</span><i>${label(team.location)}</i></div>`).join("")
+    : "Roster unavailable.";
+}
 function densityColor(value) { const hue = Math.round(140 - value * 140); return `hsl(${hue} 75% 56%)`; }
 function nodeMap() { return new Map(layout.nodes.map((node) => [node.id, node])); }
 function edgeKey(a, b) { return [a, b].sort().join(" <-> "); }
@@ -70,13 +93,18 @@ function render() {
   $("venue-title").textContent = layout.title;
   $("simulated-time").textContent = `T+${state.simulated_minutes} min`;
   $("incident-status").textContent = incident ? incident.status : "No active incident";
-  $("selected-gate").textContent = decision ? label(decision.selected_gate) : "-";
+  $("selected-gate").textContent = decision ? (decision.selected_gate === "on_site" ? "on site (no gate crossing)" : label(decision.selected_gate)) : "-";
   $("eta").textContent = decision ? `${Math.ceil(decision.estimated_arrival_seconds / 60)} min` : "-";
   $("active-scenario").textContent = label(state.active_scenario || "custom");
   $("distance-cost").textContent = decision ? `${decision.cost_breakdown.distance_seconds} sec` : "-";
   $("crowd-cost").textContent = decision ? `+${decision.cost_breakdown.crowd_penalty_seconds} sec` : "-";
   $("network-cost").textContent = decision ? `+${decision.cost_breakdown.network_penalty_seconds} sec` : "-";
+  $("access-cost").textContent = decision ? `+${decision.cost_breakdown.access_penalty_seconds} sec` : "-";
   renderApiStatus();
+  renderTeams();
+  const onSite = decision?.selected_gate === "on_site";
+  $("mark-gate").disabled = !decision || onSite;
+  $("mark-gate").title = onSite ? "The team started inside the venue; this response has no gate crossing." : "";
   $("gate-options").innerHTML = decision
     ? decision.gate_options.map(option => `<span class="gate-option ${option.gate === decision.selected_gate ? "selected" : ""}">${label(option.gate)}: ${option.available ? `${option.route_distance_m} m · ${option.eta_seconds} sec` : option.reason}</span>`).join("")
     : "Create an emergency to compare entries.";
@@ -89,6 +117,62 @@ function render() {
   corridor.value = previous || corridor.value;
   drawMap();
 }
+// The venue schematic packs nodes together, so labels parked above every node
+// overlapped. Each one takes the first free slot around its node; the incident,
+// the selected gate and the entrances get first choice.
+function mapLabelPriority(node) {
+  if (incident?.location === node.id) return 3;
+  if (decision?.selected_gate === node.id) return 2;
+  return node.kind === "gate" ? 1 : 0;
+}
+// A slot also has to miss the corridors themselves: a label parked above a node
+// whose corridor arrives from above sat right on top of that line.
+function segmentHitsBox(p, q, box) {
+  const { x, y, w, h } = box;
+  if (Math.max(p.x, q.x) < x || Math.min(p.x, q.x) > x + w) return false;
+  if (Math.max(p.y, q.y) < y || Math.min(p.y, q.y) > y + h) return false;
+  const side = (cx, cy) => (q.x - p.x) * (cy - p.y) - (q.y - p.y) * (cx - p.x);
+  const corners = [side(x, y), side(x + w, y), side(x, y + h), side(x + w, y + h)];
+  return !(corners.every((v) => v > 0) || corners.every((v) => v < 0));
+}
+function placeMapLabels() {
+  const overlaps = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  const points = nodeMap();
+  const hitsEdge = (box) => layout.edges.some((edge) => {
+    const a = points.get(edge.source), b = points.get(edge.destination);
+    return a && b && segmentHitsBox(a, b, box);
+  });
+  const ranked = [...layout.nodes].sort((a, b) =>
+    mapLabelPriority(b) - mapLabelPriority(a) || a.id.localeCompare(b.id));
+  const taken = [];
+  return ranked.map((node) => {
+    const text = label(node.id);
+    // No text metrics in a static SVG string. Measured against the rendered
+    // labels, 6.6px per character never under-estimates the 12px font by more
+    // than the padding below absorbs.
+    const width = text.length * 6.6, r = (node.kind === "gate" ? 13 : 10) + 8;
+    const o = Math.round(r * 0.75);
+    // Four sides first, then the diagonals, which is what a dense corner of the
+    // graph needs when every side is crossed by a corridor.
+    const slots = [
+      { x: node.x, y: node.y - r, anchor: "middle" },
+      { x: node.x, y: node.y + r + 9, anchor: "middle" },
+      { x: node.x - r, y: node.y + 4, anchor: "end" },
+      { x: node.x + r, y: node.y + 4, anchor: "start" },
+      { x: node.x - o, y: node.y - o, anchor: "end" },
+      { x: node.x + o, y: node.y - o, anchor: "start" },
+      { x: node.x - o, y: node.y + o + 7, anchor: "end" },
+      { x: node.x + o, y: node.y + o + 7, anchor: "start" },
+    ].map((slot) => {
+      const left = slot.anchor === "middle" ? slot.x - width / 2 : slot.anchor === "end" ? slot.x - width : slot.x;
+      return { ...slot, box: { x: left - 3, y: slot.y - 11, w: width + 6, h: 15 } };
+    });
+    const free = (candidate) => !taken.some((box) => overlaps(box, candidate.box));
+    const slot = slots.find((c) => free(c) && !hitsEdge(c.box)) || slots.find(free) || slots[0];
+    taken.push(slot.box);
+    return `<text class="node-label" text-anchor="${slot.anchor}" x="${slot.x}" y="${slot.y}">${text}</text>`;
+  }).join("");
+}
 function drawMap() {
   const svg = $("venue-map"), nodes = nodeMap(), routePairs = new Set();
   if (decision) for (let i = 0; i < decision.route.length - 1; i++) routePairs.add(edgeKey(decision.route[i], decision.route[i + 1]));
@@ -97,10 +181,17 @@ function drawMap() {
     const closed = state.closed_corridors.includes(key); return `<line class="edge ${closed ? "closed" : ""}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>${routePairs.has(key) ? `<line class="route" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>` : ""}`;
   }).join("");
   const halos = layout.nodes.filter(n => n.id !== "ambulance_bay").map((node) => { const relevant = layout.edges.find(e => e.source === node.id || e.destination === node.id); const d = relevant?.zone ? state.zone_congestion[relevant.zone] || .2 : .1; return `<circle class="crowd-halo" cx="${node.x}" cy="${node.y}" r="${30 + d * 46}" fill="${densityColor(d)}"/>`; }).join("");
-  const marks = layout.nodes.map((node) => `<g><circle class="node ${node.kind} ${incident?.location === node.id ? "incident" : ""}" cx="${node.x}" cy="${node.y}" r="${node.kind === "gate" ? 13 : 10}"/><text class="node-label" x="${node.x}" y="${node.y - 20}">${label(node.id)}</text></g>`).join("");
+  const circles = layout.nodes.map((node) => `<circle class="node ${node.kind} ${incident?.location === node.id ? "incident" : ""}" cx="${node.x}" cy="${node.y}" r="${node.kind === "gate" ? 13 : 10}"/>`).join("");
+  const marks = circles + placeMapLabels();
   svg.innerHTML = `<rect width="840" height="510" fill="#f7faf7"/>${halos}${routeLines}${marks}`;
 }
 function log(items) { $("activity").innerHTML = items.map(item => `<li>${formatActivity(item)}</li>`).join(""); }
+async function syncIncidentState() {
+  if (!incident) return;
+  try { incident = await request(`/incidents/${incident.id}`); } catch { return; }
+  if (incident.status !== "dispatched") { decision = null; routeHistory = []; }
+  render(); refreshTeams();
+}
 async function refreshHistory() { if (incident) { routeHistory = (await request(`/incidents/${incident.id}/history`)).entries; render(); } }
 async function loadScenario() {
   try {
@@ -168,14 +259,18 @@ async function runFullDemo() {
       activity.push(`Auto reroute skipped: ${label(disruption.source)} ↔ ${label(disruption.destination)} was already closed`); log(activity);
     }
 
-    const gateProgress = await request(`/incidents/${incident.id}/events/geofence`, { method:"POST", body:JSON.stringify({ team_id:decision.team_id, location:decision.selected_gate, event_type:"entered_selected_gate" }) });
-    activity.push(`Geofencing: ${decision.team_id} entered ${label(decision.selected_gate)}`); log(activity);
+    if (decision.selected_gate === "on_site") {
+      activity.push(`Geofencing: ${decision.team_id} was already inside the venue; no gate crossing to record`); log(activity);
+    } else {
+      await request(`/incidents/${incident.id}/events/geofence`, { method:"POST", body:JSON.stringify({ team_id:decision.team_id, location:decision.selected_gate, event_type:"entered_selected_gate" }) });
+      activity.push(`Geofencing: ${decision.team_id} entered ${label(decision.selected_gate)}`); log(activity);
+    }
     await pause(450);
     const arrival = await request(`/incidents/${incident.id}/events/geofence`, { method:"POST", body:JSON.stringify({ team_id:decision.team_id, location:incident.location, event_type:"reached_patient" }) });
     incident.status = arrival.completed ? "resolved" : incident.status; render();
     activity.push("Geofencing: team reached patient", "Emergency demo completed"); log(activity);
     $("decision").textContent = "Emergency response completed. The selected team was tracked from dispatch through arrival.";
-  } catch (error) { $("decision").textContent = error.message; activity.push(`Demo failed: ${error.message}`); log(activity); }
+  } catch (error) { $("decision").textContent = error.message; activity.push(`Demo failed: ${error.message}`); log(activity); await syncIncidentState(); }
   finally {
     if (temporaryClosure) {
       try {
@@ -194,7 +289,7 @@ async function createIncident() {
       || layout.nodes.at(-1).id;
     incident = await request("/incidents", { method:"POST", body:JSON.stringify({ location, priority:"critical", description:"Simulated medical emergency" }) });
     const result = await request(`/incidents/${incident.id}/dispatch`, { method:"POST" }); incident = result.incident; decision = result.decision; await refreshHistory(); render(); log(decision.api_calls); $("decision").textContent = decision.explanation;
-  } catch (error) { $("decision").textContent = error.message; }
+  } catch (error) { $("decision").textContent = error.message; await syncIncidentState(); }
 }
 async function advanceTime() { try { state = await request("/simulation/advance", { method:"POST", body:JSON.stringify({ minutes:10 }) }); render(); if (incident) addLiveActivity("Crowd update submitted; affected active routes reroute automatically."); } catch (error) { $("decision").textContent = error.message; } }
 async function reroute(message) { const result = await request(`/incidents/${incident.id}/recalculate-route`, { method:"POST" }); incident = result.incident; decision = result.decision; await refreshHistory(); render(); log([message, ...decision.api_calls]); $("decision").textContent = decision.explanation; }
@@ -207,4 +302,4 @@ $("load-scenario").addEventListener("click", loadScenario); $("create-incident")
 $("mark-gate").addEventListener("click", markGate); $("mark-arrival").addEventListener("click", markArrival);
 async function loadAgentRuntime() { try { agentRuntime = await request("/agent/status"); renderApiStatus(); } catch { agentRuntime = null; } }
 connectLiveUpdates();
-loadAgentRuntime().finally(loadScenario);
+loadAgentRuntime().finally(loadScenario).finally(refreshTeams);

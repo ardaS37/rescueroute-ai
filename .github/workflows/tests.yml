@@ -23,3 +23,9 @@ jobs:
       - run: node --check frontend/app.js
       - run: node --check frontend/arena/app.js
       - run: node --check frontend/live/app.js
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - name: Verify the committed TypeScript build is up to date
+        run: |
+          npx tsc
+          git diff --exit-code -- frontend/medic/app.js
