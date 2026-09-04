@@ -86,6 +86,8 @@ Keep `NAC_LIVE_ENABLED=false` for an entirely deterministic demo. Enable it to u
 
 `GET /agent/status` reports whether the deployed instance has a Gemini key configured, without exposing the key. If it reports `deterministic_fallback`, add `GEMINI_API_KEY` and `GEMINI_MODEL=gemini-3.6-flash` to the VPS `.env`, then recreate the app container.
 
+Nokia Geofencing and QoD callbacks require `NAC_WEBHOOK_TOKEN`. RescueRoute sends this as the Nokia sink credential and accepts callback requests only when they carry `Authorization: Bearer <token>`.
+
 ## API highlights
 
 - `POST /incidents` — create an incident.

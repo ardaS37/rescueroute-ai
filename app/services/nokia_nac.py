@@ -27,7 +27,7 @@ class NokiaNaCClient:
         self.rapidapi_host = os.getenv("RAPIDAPI_HOST", self.rapidapi_host)
         self.application_server_ip = os.getenv("NAC_APPLICATION_SERVER_IP", "1.1.1.1")
         self.webhook_base_url = os.getenv("NAC_WEBHOOK_BASE_URL", "https://tech-mate.tech").rstrip("/")
-        self.webhook_token = os.getenv("NAC_WEBHOOK_TOKEN", "rescueroute-demo")
+        self.webhook_token = os.getenv("NAC_WEBHOOK_TOKEN", "").strip()
 
     def _post(self, path: str, payload: dict[str, object]) -> dict[str, object]:
         if not self.enabled:
@@ -109,6 +109,8 @@ class NokiaNaCClient:
 
     def create_geofence_subscription(self, phone_number: str) -> str:
         """Register the public RescueRoute callback with Nokia's geofencing API."""
+        if not self.webhook_token:
+            raise NokiaNaCError("NAC_WEBHOOK_TOKEN is required for authenticated geofencing callbacks.")
         response = self._post(
             "/geofencing-subscriptions/v0.3/subscriptions",
             {
@@ -127,6 +129,11 @@ class NokiaNaCClient:
                         },
                     },
                     "initialEvent": True,
+                },
+                "sinkCredential": {
+                    "credentialType": "PLAIN",
+                    "identifier": "rescueroute-ai",
+                    "secret": self.webhook_token,
                 },
             },
         )

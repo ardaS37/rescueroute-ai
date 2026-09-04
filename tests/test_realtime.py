@@ -71,3 +71,8 @@ class WebSocketEndpointTests(unittest.TestCase):
         self.assertEqual(len(history), 2)
         self.assertEqual(history[-1]["event_type"], "reroute")
         self.assertIn("Automatic reroute", history[-1]["trigger"])
+
+    def test_nokia_webhook_rejects_missing_bearer_credential(self) -> None:
+        with TestClient(app) as client:
+            response = client.post("/webhooks/nokia/geofence", json={"type": "area-entered"})
+        self.assertEqual(response.status_code, 401)

@@ -1,3 +1,6 @@
+import hmac
+import os
+
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -34,6 +37,14 @@ realtime = DashboardBroadcaster()
 
 def persist_simulation(simulation_state: SimulationState) -> None:
     store.save_state("simulation", simulation_state.model_dump(mode="json"))
+
+
+def verify_nokia_webhook(request: Request) -> None:
+    """Accept only Nokia callbacks carrying our configured Bearer sink credential."""
+    expected = os.getenv("NAC_WEBHOOK_TOKEN", "").strip()
+    provided = request.headers.get("authorization", "")
+    if not expected or not hmac.compare_digest(provided, f"Bearer {expected}"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Nokia webhook credential")
 
 
 async def reroute_affected_incidents(
@@ -170,6 +181,7 @@ async def record_geofence_event(incident_id: str, payload: GeofenceEventRequest)
 @app.post("/webhooks/nokia/geofence", include_in_schema=False)
 async def nokia_geofence_webhook(request: Request) -> dict[str, str]:
     """Public Nokia callback receiver linked to the active emergency route."""
+    verify_nokia_webhook(request)
     payload = await request.json()
     progress, status_message = incident_service.process_nokia_geofence_callback(payload)
     if progress:
@@ -184,6 +196,7 @@ async def nokia_geofence_webhook(request: Request) -> dict[str, str]:
 
 @app.post("/webhooks/nokia/qod", include_in_schema=False)
 async def nokia_qod_webhook(request: Request) -> dict[str, str]:
+    verify_nokia_webhook(request)
     await request.json()
     return {"status": "accepted"}
 
