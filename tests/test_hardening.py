@@ -234,6 +234,83 @@ class VenueSwitchEndpointTests(unittest.TestCase):
         self.assertEqual(realtime.connection_count, before)
 
 
+class CancelEndpointTests(unittest.TestCase):
+    """The roster has to be recoverable from the browser, not only by restarting."""
+
+    def setUp(self) -> None:
+        security.reset_rate_limits()
+
+    def test_cancelling_frees_a_team_and_releases_the_queue(self) -> None:
+        with TestClient(app) as client:
+            client.post("/simulation/configure", json={
+                "template": "stadium_match", "seed": 42, "crowd_pattern": "balanced",
+            })
+            committed = []
+            for location in ("main_stage", "east_concourse", "first_aid"):
+                incident = client.post("/incidents", json={
+                    "location": location, "priority": "high", "description": "abandoned run",
+                }).json()
+                client.post(f"/incidents/{incident['id']}/dispatch")
+                committed.append(incident["id"])
+
+            waiting = client.post("/incidents", json={
+                "location": "central_plaza", "priority": "critical", "description": "the demo run",
+            }).json()
+            queued = client.post(f"/incidents/{waiting['id']}/dispatch")
+
+            cancelled = client.post(f"/incidents/{committed[0]}/cancel")
+            released = client.get(f"/incidents/{waiting['id']}").json()["status"]
+            again = client.post(f"/incidents/{committed[0]}/cancel")
+            unknown = client.post("/incidents/does-not-exist/cancel")
+
+        self.assertEqual(queued.status_code, 409)
+        self.assertEqual(cancelled.status_code, 200)
+        self.assertEqual(cancelled.json()["status"], "cancelled")
+        # The freed medic picks the waiting incident up without another request.
+        self.assertEqual(released, "dispatched")
+        self.assertEqual(again.status_code, 409)
+        self.assertEqual(unknown.status_code, 404)
+
+
+class RosterRecoveryEndpointTests(unittest.TestCase):
+    """The guided demo's reset has to recover a roster it never saw filled."""
+
+    def setUp(self) -> None:
+        security.reset_rate_limits()
+
+    def test_clearing_open_incidents_frees_every_team(self) -> None:
+        with TestClient(app) as client:
+            client.post("/simulation/configure", json={
+                "template": "stadium_match", "seed": 42, "crowd_pattern": "balanced",
+            })
+            abandoned = []
+            for location in ("main_stage", "east_concourse", "first_aid"):
+                incident = client.post("/incidents", json={
+                    "location": location, "priority": "high", "description": "abandoned run",
+                }).json()
+                client.post(f"/incidents/{incident['id']}/dispatch")
+                abandoned.append(incident["id"])
+            committed = [team["status"] for team in client.get("/teams").json()]
+
+            with client.websocket_connect("/ws/dashboard") as socket:
+                socket.receive_json()  # the opening snapshot
+                cleared = client.post("/incidents/cancel-open")
+                broadcast = socket.receive_json()
+
+            roster = client.get("/teams").json()
+            repeated = client.post("/incidents/cancel-open")
+
+        self.assertEqual(committed, ["assigned"] * 3)
+        self.assertEqual(cleared.status_code, 200)
+        # Other tests share the default workspace, so this clears their leftovers
+        # too; what matters is that every run still open is closed.
+        self.assertLessEqual(set(abandoned), set(cleared.json()["cancelled"]))
+        self.assertEqual(broadcast["type"], "incidents_cancelled")
+        self.assertCountEqual(broadcast["incident_ids"], cleared.json()["cancelled"])
+        self.assertTrue(all(team["status"] == "available" for team in roster))
+        self.assertEqual(repeated.json()["cancelled"], [])
+
+
 class CredentialComparisonTests(unittest.TestCase):
     """A credential a client can send must never be able to raise a 500.
 

@@ -109,8 +109,17 @@
       if (view.selectedGate === node.id) return 2;
       return node.kind === "gate" ? 1 : 0;
     };
+    // The Hajj layout names real places inside Masjid al-Haram and draws a
+    // response route across them.  Saying on the map itself what the map is
+    // keeps that claim where a viewer sees it, not only in the README.
+    const disclaimer = state.template === "pilgrimage_flow"
+      ? `<text class="map-disclaimer" x="420" y="500" text-anchor="middle">`
+        + `Demonstration model only — not an official map of Masjid al-Haram`
+        + `</text>`
+      : "";
+
     svg.innerHTML = `<rect width="840" height="510" fill="#f7faf7"/>`
-      + halos + lines + circles + placeLabels(layout, priorityOf);
+      + halos + lines + circles + placeLabels(layout, priorityOf) + disclaimer;
   }
 
   global.RescueRouteMap = { draw, label, edgeKey, densityColor };

@@ -230,6 +230,45 @@ class IncidentService:
         self._prune_incidents()
         return incident
 
+    def cancel(self, incident_id: str) -> Incident:
+        """Close one open incident and release whoever was committed to it.
+
+        Without this, a team was freed only by an arrival or by loading a venue
+        that no longer contained the incident.  An abandoned response therefore
+        held its medic for the life of the process, and three of them left the
+        roster empty: every later dispatch answered 409 and queued instead.
+        """
+        incident = self.get(incident_id)
+        if incident.status in CLOSED_STATUSES:
+            raise IncidentStateError(
+                f"Incident is already {incident.status.value}; it can no longer be cancelled."
+            )
+        self._close_as_cancelled(incident_id, incident)
+        return incident
+
+    def _close_as_cancelled(self, incident_id: str, incident: Incident) -> None:
+        incident.status = IncidentStatus.CANCELLED
+        # The team stops where it stands, which is what the roster should show.
+        progress = self._progress.get(incident_id)
+        self._release_team(incident_id, at_location=progress.last_location if progress else None)
+        self._forget_geofence_subscriptions(incident_id)
+        self._persist(incident_id)
+
+    def cancel_open_incidents(self) -> list[str]:
+        """Close every incident still open, handing back every committed team.
+
+        A reset can only see the run it started itself, so a run abandoned by a
+        page reload kept its medic with no way back short of restarting the
+        process or loading a venue that happened not to contain its location.
+        """
+        cancelled: list[str] = []
+        for incident_id, incident in self._incidents.items():
+            if incident.status in CLOSED_STATUSES:
+                continue
+            self._close_as_cancelled(incident_id, incident)
+            cancelled.append(incident_id)
+        return cancelled
+
     def cancel_incidents_outside_venue(self) -> list[str]:
         """Cancel open incidents whose location is not part of the loaded venue.
 

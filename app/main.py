@@ -268,6 +268,41 @@ async def recalculate_route(incident_id: str, space: Workspace = Depends(workspa
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error))
 
 
+@app.post("/incidents/cancel-open", tags=["incidents"], dependencies=[Depends(write_guard)])
+async def cancel_open_incidents(space: Workspace = Depends(workspace_for)) -> dict[str, list[str]]:
+    """Hand every committed team back by closing whatever still holds it.
+
+    The per-incident cancel only reaches a run the caller still has in hand; a
+    run abandoned by a reload needed this to get its medic back.
+    """
+    cancelled = space.incidents.cancel_open_incidents()
+    if cancelled:
+        await space.realtime.broadcast({"type": "incidents_cancelled", "incident_ids": cancelled})
+    return {"cancelled": cancelled}
+
+
+@app.post("/incidents/{incident_id}/cancel", response_model=Incident,
+    tags=["incidents"], dependencies=[Depends(write_guard)])
+async def cancel_incident(incident_id: str, space: Workspace = Depends(workspace_for)) -> Incident:
+    """Close an open incident and hand its team back to the roster.
+
+    An abandoned response used to hold its medic until the process restarted or
+    a venue without that node was loaded, so a few unfinished runs emptied the
+    roster and every later dispatch answered 409.
+    """
+    try:
+        incident = space.incidents.cancel(incident_id)
+    except IncidentNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error))
+    await space.realtime.broadcast({
+        "type": "incidents_cancelled", "incident_ids": [incident_id],
+    })
+    await dispatch_queued_incidents(space)
+    return incident
+
+
 @app.get("/incidents/{incident_id}/decision", response_model=RouteDecision, tags=["incidents"])
 def get_incident_decision(incident_id: str, space: Workspace = Depends(workspace_for)) -> RouteDecision:
     """The route the assigned team is currently following.

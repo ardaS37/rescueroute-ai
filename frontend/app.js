@@ -85,9 +85,24 @@ function renderTeams() {
     ? teams.map(team => `<div class="team ${team.status}"><b>${escapeHtml(team.name)}</b><span>${team.status}</span><i>${label(team.location)}</i></div>`).join("")
     : "Roster unavailable.";
 }
+// "Stage cluster" is festival vocabulary, and it was still on screen while the
+// map rendered Masjid al-Haram. The option values the API receives are
+// unchanged; only the words follow the venue.
+const CROWD_PATTERN_LABELS = {
+  stadium_match: { gate_surge: "Gate surge", stage_cluster: "Pitch-side cluster", balanced: "Balanced" },
+  music_festival: { gate_surge: "Gate surge", stage_cluster: "Stage cluster", balanced: "Balanced" },
+  pilgrimage_flow: { gate_surge: "Arrival surge", stage_cluster: "Peak Tawaf", balanced: "Balanced" },
+};
+function relabelCrowdPatterns(template) {
+  const labels = CROWD_PATTERN_LABELS[template] || CROWD_PATTERN_LABELS.stadium_match;
+  for (const option of $("crowd-pattern").options) {
+    if (labels[option.value]) option.textContent = labels[option.value];
+  }
+}
 function render() {
   if (!state || !layout) return;
   $("venue-title").textContent = layout.title;
+  relabelCrowdPatterns(state.template);
   $("simulated-time").textContent = `T+${state.simulated_minutes} min`;
   $("incident-status").textContent = incident ? incident.status : "No active incident";
   $("selected-gate").textContent = decision ? (decision.selected_gate === "on_site" ? "on site (no gate crossing)" : label(decision.selected_gate)) : "-";

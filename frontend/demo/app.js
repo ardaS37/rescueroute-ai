@@ -185,9 +185,24 @@ async function refreshTeams() {
   try { teams = await request("/teams"); } catch { teams = []; }
 }
 
+// "Stage cluster" is festival vocabulary, and it was still on screen while the
+// map rendered Masjid al-Haram. The option values the API receives are
+// unchanged; only the words follow the venue.
+const CROWD_PATTERN_LABELS = {
+  stadium_match: { gate_surge: "Gate surge", stage_cluster: "Pitch-side cluster", balanced: "Balanced" },
+  music_festival: { gate_surge: "Gate surge", stage_cluster: "Stage cluster", balanced: "Balanced" },
+  pilgrimage_flow: { gate_surge: "Arrival surge", stage_cluster: "Peak Tawaf", balanced: "Balanced" },
+};
+function relabelCrowdPatterns(template) {
+  const labels = CROWD_PATTERN_LABELS[template] || CROWD_PATTERN_LABELS.stadium_match;
+  for (const option of $("crowd-pattern").options) {
+    if (labels[option.value]) option.textContent = labels[option.value];
+  }
+}
 function render() {
   if (!layout || !state) return;
   $("venue-title").textContent = layout.title;
+  relabelCrowdPatterns(state.template);
   $("simulated-time").textContent = `T+${state.simulated_minutes} min`;
   $("incident-status").textContent = incident ? `${incident.status} · ${label(incident.location)}` : "Not created";
   $("team-status").textContent = decision ? decision.team_id : "-";
@@ -342,6 +357,14 @@ function resetRun() {
 }
 
 async function resetDemo() {
+  // Hand every medic back before clearing local state. A run stopped halfway
+  // used to hold its team until the process restarted, so a few abandoned
+  // rehearsals left the roster empty and the next dispatch could only queue.
+  // This closes runs this page never saw too, such as one lost to a reload.
+  let released;
+  try {
+    released = (await request("/incidents/cancel-open", { method: "POST" })).cancelled.length;
+  } catch { released = null; }
   if (closedCorridor && $("restore-corridor").checked) {
     try {
       state = await request("/simulation/events/corridor", {
@@ -349,7 +372,12 @@ async function resetDemo() {
       });
     } catch { /* the venue reload below restores it anyway */ }
   }
+  await refreshTeams();
   resetRun();
+  // After resetRun, which clears the activity list this would otherwise land in.
+  log(released === null ? "Reset: the roster could not be cleared — check the team list"
+    : released ? `Reset: ${released} open incident(s) cancelled, every team back on the roster`
+    : "Reset: no incident was open, the roster was already clear");
   setBusy(false);
   $("connection-status").textContent = "Choose the scenario, then walk through it";
 }

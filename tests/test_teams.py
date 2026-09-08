@@ -93,6 +93,93 @@ class AllocationTests(unittest.TestCase):
         self.assertNotIn(decision.team_id, service._assignments)
 
 
+class AbandonedResponseTests(unittest.TestCase):
+    """An unfinished run must not hold its medic for the life of the process.
+
+    Three rehearsals stopped halfway used to leave the roster empty, and every
+    later dispatch answered 409 "no response team is available".
+    """
+
+    def test_cancelling_an_open_incident_returns_its_team(self) -> None:
+        _, service = build_service()
+        incident, decision = dispatch_at(service, "main_stage", Priority.CRITICAL)
+        self.assertEqual(service.teams()[0].incident_id, incident.id)
+
+        cancelled = service.cancel(incident.id)
+
+        self.assertEqual(cancelled.status, IncidentStatus.CANCELLED)
+        holder = next(team for team in service.teams() if team.id == decision.team_id)
+        self.assertEqual(holder.status, TeamStatus.AVAILABLE)
+        self.assertIsNone(holder.incident_id)
+
+    def test_three_abandoned_runs_no_longer_exhaust_the_roster(self) -> None:
+        _, service = build_service()
+        abandoned = [
+            dispatch_at(service, location, Priority.HIGH)[0].id
+            for location in ("main_stage", "east_concourse", "first_aid")
+        ]
+        blocked = service.create("central_plaza", Priority.CRITICAL, "the demo run")
+        with self.assertRaises(NoTeamAvailableError):
+            service.dispatch(blocked.id)
+
+        for incident_id in abandoned:
+            service.cancel(incident_id)
+
+        _, decision = service.dispatch(blocked.id)
+        self.assertEqual(service.get(blocked.id).status, IncidentStatus.DISPATCHED)
+        self.assertTrue(decision.route)
+
+    def test_cancelling_every_open_incident_clears_the_whole_roster(self) -> None:
+        """The recovery a reset needs: it cannot see runs a reload abandoned."""
+        _, service = build_service()
+        abandoned = [
+            dispatch_at(service, location, Priority.HIGH)[0].id
+            for location in ("main_stage", "east_concourse", "first_aid")
+        ]
+        # A fourth call has nowhere to go, so it waits — and is open too.
+        waiting = service.create("central_plaza", Priority.LOW, "waiting")
+        with self.assertRaises(NoTeamAvailableError):
+            service.dispatch(waiting.id)
+
+        cancelled = service.cancel_open_incidents()
+
+        self.assertCountEqual(cancelled, abandoned + [waiting.id])
+        self.assertTrue(all(team.status is TeamStatus.AVAILABLE for team in service.teams()))
+        self.assertTrue(all(team.incident_id is None for team in service.teams()))
+
+    def test_clearing_the_roster_leaves_closed_incidents_alone(self) -> None:
+        _, service = build_service()
+        resolved, _ = dispatch_at(service, "main_stage", Priority.HIGH)
+        resolve(service, resolved.id)
+        still_open, _ = dispatch_at(service, "east_concourse", Priority.HIGH)
+
+        cancelled = service.cancel_open_incidents()
+
+        self.assertEqual(cancelled, [still_open.id])
+        self.assertEqual(service.get(resolved.id).status, IncidentStatus.RESOLVED)
+        self.assertEqual(service.get(still_open.id).status, IncidentStatus.CANCELLED)
+
+    def test_clearing_an_already_clear_roster_is_a_no_op(self) -> None:
+        _, service = build_service()
+        self.assertEqual(service.cancel_open_incidents(), [])
+
+    def test_a_closed_incident_cannot_be_cancelled_twice(self) -> None:
+        _, service = build_service()
+        incident, _ = dispatch_at(service, "main_stage", Priority.HIGH)
+        service.cancel(incident.id)
+
+        with self.assertRaises(IncidentStateError):
+            service.cancel(incident.id)
+
+    def test_a_resolved_incident_cannot_be_cancelled(self) -> None:
+        _, service = build_service()
+        incident, _ = dispatch_at(service, "main_stage", Priority.HIGH)
+        resolve(service, incident.id)
+
+        with self.assertRaises(IncidentStateError):
+            service.cancel(incident.id)
+
+
 class QueueTests(unittest.TestCase):
     def fill_every_team(self, service: IncidentService) -> list[str]:
         return [
