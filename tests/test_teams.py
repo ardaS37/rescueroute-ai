@@ -163,6 +163,35 @@ class AbandonedResponseTests(unittest.TestCase):
         _, service = build_service()
         self.assertEqual(service.cancel_open_incidents(), [])
 
+    def test_returning_teams_to_base_makes_the_next_run_repeatable(self) -> None:
+        """A second rehearsal used to start mid-venue and report on_site."""
+        _, service = build_service()
+        first, decision = dispatch_at(service, "main_stage", Priority.CRITICAL)
+        resolve(service, first.id)
+        self.assertEqual(service.team_location(decision.team_id), "main_stage")
+
+        returned = service.return_teams_to_base()
+
+        self.assertIn(decision.team_id, returned)
+        self.assertTrue(all(team.location == "ambulance_bay" for team in service.teams()))
+        _, repeated = dispatch_at(service, "main_stage", Priority.CRITICAL)
+        self.assertEqual(repeated.route, decision.route)
+        self.assertEqual(repeated.selected_gate, decision.selected_gate)
+
+    def test_a_committed_team_keeps_its_position(self) -> None:
+        """Resetting positions must not reroute a response already under way."""
+        _, service = build_service()
+        first, first_decision = dispatch_at(service, "main_stage", Priority.HIGH)
+        resolve(service, first.id)
+        # That team now stands at main_stage and takes the next nearby call.
+        second, second_decision = dispatch_at(service, "first_aid", Priority.HIGH)
+        self.assertEqual(second_decision.team_id, first_decision.team_id)
+
+        returned = service.return_teams_to_base()
+
+        self.assertNotIn(second_decision.team_id, returned)
+        self.assertEqual(service.team_location(second_decision.team_id), "main_stage")
+
     def test_a_closed_incident_cannot_be_cancelled_twice(self) -> None:
         _, service = build_service()
         incident, _ = dispatch_at(service, "main_stage", Priority.HIGH)

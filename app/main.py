@@ -218,6 +218,16 @@ def list_teams(space: Workspace = Depends(workspace_for)) -> list[TeamState]:
     return space.incidents.teams()
 
 
+@app.post("/teams/return-to-base", tags=["teams"], dependencies=[Depends(write_guard)])
+async def return_teams_to_base(space: Workspace = Depends(workspace_for)) -> dict[str, list[str]]:
+    """Send every uncommitted team back to its home base.
+
+    Staying at the scene is the right operational behaviour, but it makes a
+    second rehearsal start from wherever the first one ended.
+    """
+    return {"returned": space.incidents.return_teams_to_base()}
+
+
 @app.post("/incidents", response_model=Incident, status_code=status.HTTP_201_CREATED,
     tags=["incidents"], dependencies=[Depends(write_guard)])
 async def create_incident(payload: CreateIncidentRequest, space: Workspace = Depends(workspace_for)) -> Incident:

@@ -120,6 +120,24 @@ class IncidentService:
                 self._team_locations[team_id] = at_location
         self._persist_team_state()
 
+    def return_teams_to_base(self) -> list[str]:
+        """Send every uncommitted team back to its home base.
+
+        A team that resolves a call stays at the scene, which is right in
+        operation but makes a rehearsal start wherever the last one ended: the
+        second run began mid-venue and reported ``on_site`` with no gate to
+        compare.  A team still committed keeps its position, so an active
+        response is never rerouted from a base it has already left.
+        """
+        returned: list[str] = []
+        for team in self.camara.teams:
+            if team.id in self._assignments:
+                continue
+            if self._team_locations.pop(team.id, None) is not None:
+                returned.append(team.id)
+        self._persist_team_state()
+        return returned
+
     def reset_team_positions(self) -> None:
         """Send every team back to its home base, e.g. after a venue change."""
         self._team_locations = {}

@@ -364,6 +364,10 @@ async function resetDemo() {
   let released;
   try {
     released = (await request("/incidents/cancel-open", { method: "POST" })).cancelled.length;
+    // And back to the ambulance bay. A team that resolves a call stays at the
+    // scene, so without this the next take started mid-venue and reported
+    // "on_site" — no gate crossing, and nothing to compare entries with.
+    await request("/teams/return-to-base", { method: "POST" });
   } catch { released = null; }
   if (closedCorridor && $("restore-corridor").checked) {
     try {
@@ -376,8 +380,8 @@ async function resetDemo() {
   resetRun();
   // After resetRun, which clears the activity list this would otherwise land in.
   log(released === null ? "Reset: the roster could not be cleared — check the team list"
-    : released ? `Reset: ${released} open incident(s) cancelled, every team back on the roster`
-    : "Reset: no incident was open, the roster was already clear");
+    : released ? `Reset: ${released} open incident(s) cancelled, every team back at the ambulance bay`
+    : "Reset: no incident was open, every team back at the ambulance bay");
   setBusy(false);
   $("connection-status").textContent = "Choose the scenario, then walk through it";
 }
