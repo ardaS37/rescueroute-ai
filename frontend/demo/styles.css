@@ -1,0 +1,50 @@
+/* Demo-only additions on top of the shared control-centre sheet. */
+
+.demo-choices { margin-top: -8px; }
+.demo-choices label.checkbox {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; color: var(--muted); align-self: center;
+}
+.demo-choices label.checkbox input { width: auto; }
+.demo-choices select { max-width: 260px; }
+
+.demo-steps {
+  padding: 16px; margin-bottom: 18px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+}
+.demo-steps ol {
+  margin: 0; padding: 0; list-style: none;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px;
+}
+.step {
+  position: relative; padding: 10px 12px 10px 34px; border-radius: 9px;
+  border: 1px solid var(--line); background: #fbfdfc; font-size: 13px;
+}
+.step b { display: block; font-weight: 620; }
+.step i { display: block; margin-top: 3px; font-style: normal; font-size: 11.5px; color: var(--muted); }
+.step::before {
+  position: absolute; left: 11px; top: 10px; width: 15px; height: 15px;
+  border-radius: 50%; border: 1.5px solid #c2d0c9; background: #fff;
+  content: ""; display: block;
+}
+.step.next { border-color: #9abbb5; background: var(--teal-soft); }
+.step.next::before { border-color: var(--teal); box-shadow: 0 0 0 3px #36766f22; }
+.step.running::before { border-color: var(--amber); background: var(--amber-soft); }
+.step.done::before {
+  border-color: var(--teal); background: var(--teal);
+  content: "✓"; color: #fff; font-size: 10px; line-height: 15px; text-align: center;
+}
+.step.done { border-color: #bcd4cf; }
+.step.skipped { opacity: .62; }
+.step.skipped::before { content: "–"; color: var(--muted); font-size: 11px; line-height: 13px; text-align: center; }
+.step.failed { border-color: #e0bcbc; background: var(--red-soft); }
+.step.failed::before { content: "!"; border-color: var(--red); color: var(--red); font-size: 11px; line-height: 13px; text-align: center; }
+.step.failed i { color: #823d3d; }
+
+.demo-steps .step b { color: var(--ink); }
+.node.selected-gate { stroke: var(--amber); stroke-width: 4; }
+.edge.restricted { stroke-dasharray: 3 6; }
+
+@media (max-width: 800px) {
+  .demo-choices select { max-width: none; }
+}

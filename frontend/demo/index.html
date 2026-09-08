@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RescueRoute AI - Guided emergency demo</title>
+    <link rel="stylesheet" href="../styles.css?v=5">
+    <link rel="stylesheet" href="../theme-fixes.css?v=3">
+    <link rel="stylesheet" href="styles.css?v=1">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <nav class="site-nav"><a href="/">← Home</a><a href="../">Control centre</a><a href="../arena/">2D arena</a></nav>
+        <span class="eyebrow">RESCUEROUTE AI</span>
+        <h1>Guided emergency demo</h1>
+      </div>
+      <div class="connection"><span class="pulse"></span><span id="connection-status">Choose the scenario, then walk through it</span></div>
+    </header>
+
+    <main>
+      <section class="controls" aria-label="Demo setup">
+        <label>Recorded scenario
+          <select id="recorded-scenario">
+            <option value="">None — use venue settings</option>
+            <option value="normal">Normal operation</option>
+            <option value="gate_a_busy">Gate A congested</option>
+            <option value="corridor_closed">Gate C corridor closed</option>
+            <option value="primary_team_unavailable">Primary team unavailable</option>
+            <option value="hajj_tawaf_surge">Hajj: Tawaf surge</option>
+            <option value="hajj_masaa_congestion">Hajj: Mas'a congestion</option>
+          </select>
+        </label>
+        <label>Venue <select id="template"><option value="stadium_match">Stadium match</option><option value="music_festival">Music festival</option><option value="pilgrimage_flow">Hajj flow</option></select></label>
+        <label>Crowd pattern <select id="crowd-pattern"><option value="gate_surge">Gate surge</option><option value="stage_cluster">Stage cluster</option><option value="balanced">Balanced</option></select></label>
+        <label title="Crowd density is simulated, not fetched: the seed makes it reproducible between rehearsals.">Seed <input id="seed" type="number" min="0" value="42"></label>
+        <button id="load-venue" class="primary">Load venue</button>
+      </section>
+
+      <section class="controls demo-choices" aria-label="Demo choices">
+        <label>Emergency happens at <select id="incident-location" disabled></select></label>
+        <label>Priority
+          <select id="priority">
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </label>
+        <label>Corridor to close <select id="close-corridor" disabled><option value="">No closure</option></select></label>
+        <label class="checkbox"><input id="restore-corridor" type="checkbox" checked> Reopen it when the demo ends</label>
+        <button id="next-step" disabled>Next step ▸</button>
+        <button id="run-rest" class="primary" disabled>Run to the end ▸▸</button>
+        <button id="reset-demo">Reset</button>
+      </section>
+
+      <section class="demo-steps" aria-label="Demo steps">
+        <ol id="steps"></ol>
+      </section>
+
+      <section class="decision-details" aria-label="Route decision details">
+        <div><span>Incident</span><strong id="incident-status">Not created</strong></div>
+        <div><span>Assigned team</span><strong id="team-status">-</strong></div>
+        <div><span>Selected gate</span><strong id="selected-gate">-</strong></div>
+        <div><span>Estimated arrival</span><strong id="eta">-</strong></div>
+        <div><span>Route distance</span><strong id="distance-cost">-</strong></div>
+        <div><span>Crowd penalty</span><strong id="crowd-cost">-</strong></div>
+        <div><span>Network penalty</span><strong id="network-cost">-</strong></div>
+        <div><span>Access penalty</span><strong id="access-cost">-</strong></div>
+        <div class="api-status"><span>CAMARA data sources</span><div id="api-status"><em class="api-badge simulation">Simulation ready</em></div></div>
+        <div class="gate-options"><span>Gate comparison</span><div id="gate-options">Run the dispatch step to compare entries.</div></div>
+        <div class="decision-history"><span>Decision history</span><ol id="decision-history"><li>No route decisions recorded.</li></ol></div>
+      </section>
+
+      <section class="workspace">
+        <div class="map-panel">
+          <div class="panel-heading"><div><span class="eyebrow">VENUE MAP</span><h2 id="venue-title">Load a venue to begin</h2></div><span id="simulated-time">T+0 min</span></div>
+          <div class="map-wrap"><svg id="venue-map" viewBox="0 0 840 510" role="img" aria-label="Venue demo map"></svg></div>
+          <div class="legend"><span><i class="route-key"></i>Emergency route</span><span><i class="crowd-key low"></i>Low density</span><span><i class="crowd-key high"></i>High density</span><span><i class="closed-key"></i>Closed corridor</span></div>
+        </div>
+        <aside class="side-panel">
+          <div class="panel-heading"><div><span class="eyebrow">NETWORK INTELLIGENCE</span><h2>Crowd zones</h2></div></div>
+          <div id="zone-list" class="zone-list" aria-live="polite">Load a venue to see zone density.</div>
+          <div class="team-panel">
+            <span class="eyebrow">RESPONSE TEAMS</span>
+            <div id="team-list" class="team-list" aria-live="polite">Roster loads with the venue.</div>
+          </div>
+          <div class="event-log"><span class="eyebrow">AGENT ACTIVITY</span><ol id="activity"><li>Awaiting the first step</li></ol></div>
+        </aside>
+      </section>
+
+      <p id="decision" class="decision" aria-live="polite">Pick where the emergency happens and which corridor to close, then step through the response.</p>
+    </main>
+
+    <script src="../map.js?v=1"></script>
+    <script src="app.js?v=1"></script>
+  </body>
+</html>

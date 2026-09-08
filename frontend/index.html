@@ -10,13 +10,12 @@
   <body>
     <header class="topbar">
       <div><nav class="site-nav"><a href="/">← Home</a></nav><span class="eyebrow">RESCUEROUTE AI</span><h1>Emergency control centre</h1></div>
-      <div class="connection"><a href="medic/">Open medic view</a><a href="arena/">Open free 2D arena</a><a href="live/">Open live crowd flow</a><span class="pulse"></span><span id="connection-status">Live simulation</span></div>
+      <div class="connection"><a href="demo/">Open guided demo</a><a href="medic/">Open medic view</a><a href="arena/">Open free 2D arena</a><a href="live/">Open live crowd flow</a><span class="pulse"></span><span id="connection-status">Live simulation</span></div>
     </header>
     <main>
       <section class="controls" aria-label="Simulation controls">
         <label>Recorded scenario <select id="recorded-scenario"><option value="normal">Normal operation</option><option value="gate_a_busy">Gate A congested</option><option value="corridor_closed">Gate C corridor closed</option><option value="primary_team_unavailable">Primary team unavailable</option><option value="hajj_tawaf_surge">Hajj: Tawaf surge</option><option value="hajj_masaa_congestion">Hajj: Mas'a congestion</option></select></label>
         <button id="apply-scenario">Apply demo scenario</button>
-        <button id="run-full-demo" class="primary" title="Uses the currently loaded venue, crowd pattern, seed, and scenario">Run full emergency demo</button>
         <label>Venue <select id="template"><option value="stadium_match">Stadium match</option><option value="music_festival">Music festival</option><option value="pilgrimage_flow">Hajj flow</option></select></label>
         <label>Crowd pattern <select id="crowd-pattern"><option value="gate_surge">Gate surge</option><option value="stage_cluster">Stage cluster</option><option value="balanced">Balanced</option></select></label>
         <label>Seed <input id="seed" type="number" min="0" value="42"></label>
@@ -65,6 +64,7 @@
       </section>
       <p id="decision" class="decision" aria-live="polite">Load a scenario, then create an emergency to see the AI decision.</p>
     </main>
-    <script src="app.js?v=4"></script>
+    <script src="map.js?v=1"></script>
+    <script src="app.js?v=5"></script>
   </body>
 </html>

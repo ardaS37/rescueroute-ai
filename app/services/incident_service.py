@@ -257,6 +257,18 @@ class IncidentService:
     def dispatch(
         self, incident_id: str, trigger: str = "Initial emergency dispatch", agent_tools: list[str] | None = None
     ) -> tuple[Incident, RouteDecision]:
+        """Score and assign one response, under a bounded live-provider budget.
+
+        The budget is opened here because a decision is the unit that fans out
+        into provider calls; once it is spent the remaining calls fall back to
+        recorded data instead of holding the dispatch open.
+        """
+        with self.camara.decision_budget():
+            return self._dispatch(incident_id, trigger, agent_tools)
+
+    def _dispatch(
+        self, incident_id: str, trigger: str, agent_tools: list[str] | None
+    ) -> tuple[Incident, RouteDecision]:
         incident = self.get(incident_id)
         if incident.status in CLOSED_STATUSES:
             raise IncidentStateError(

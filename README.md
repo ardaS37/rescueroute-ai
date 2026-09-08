@@ -60,6 +60,7 @@ The canvas is a schematic, so each scale is calibrated to make the median corrid
 
 | Page | Audience | Purpose |
 | --- | --- | --- |
+| `/dashboard/demo/` | Presenting the system | Guided walkthrough: choose the venue, where the emergency happens and which corridor closes, then step through dispatch, reroute, geofencing and arrival one step at a time. |
 | `/dashboard/` | Event control centre | Venue map, incidents, routing, gate comparison, live disruption controls, team roster. |
 | `/dashboard/medic/` | Responding medical team | Phone-first responder view: current assignment, entry gate, step-by-step route with crowd levels, and arrival reporting. Written in TypeScript. |
 | `/dashboard/arena/` | Demonstration | Free 2D crowd simulation that feeds aggregated density back to the routing engine. |
@@ -69,7 +70,7 @@ The canvas is a schematic, so each scale is calibrated to make the median corrid
 
 **Deployment shape.** Each signed-in visitor already drives an isolated workspace: its own venue state, incidents, team roster and dashboard sockets, persisted under its own key and released when it goes idle. The same boundary is what a production deployment uses per event, so scaling from one demo visitor to many concurrent venues is a matter of capacity, not of architecture. One process holds `RESCUEROUTE_MAX_WORKSPACES` of them; beyond that they shard by workspace key.
 
-**Cost profile.** One decision costs at most five CAMARA calls, and the agent filters them: a crowd change in a zone no active route uses triggers nothing. Routing is Dijkstra over a 12–20 node graph, so the compute cost per venue is negligible and the operating cost is dominated by network-API calls, which scale with incidents rather than with attendees.
+**Cost profile.** One decision costs at most five CAMARA calls, and the agent filters them: a crowd change in a zone no active route uses triggers nothing. A decision also carries a wall-clock budget (`NAC_DECISION_BUDGET_SECONDS`, 6 s by default) for its outbound provider calls, so a slow operator API degrades to recorded data instead of holding the dispatch open. Routing is Dijkstra over a 12–20 node graph, so the compute cost per venue is negligible and the operating cost is dominated by network-API calls, which scale with incidents rather than with attendees.
 
 **Who buys it.** Stadium and arena operators, event organisers and their medical contractors, municipalities running mega-projects, and pilgrimage authorities. The natural commercial shape is a per-event or per-venue subscription with the operator's own MNO supplying the Open Gateway credentials, since the value depends on live network signals the operator already sells.
 
@@ -194,7 +195,7 @@ docker compose ps
 ## Validation
 
 ```powershell
-py -m unittest discover -s tests -v
+py -m unittest discover -s tests -t . -v
 ```
 
 The test suite covers routing, deterministic scenarios, fallback-team assignment, automatic-reroute filtering, persistent route history, WebSocket delivery, and Nokia Geofencing callback-to-incident progress. GitHub Actions runs this suite for every push and pull request.

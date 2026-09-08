@@ -7,6 +7,8 @@ request from Nokia Network-as-Code / an operator gateway.
 from __future__ import annotations
 
 import random
+from contextlib import contextmanager
+from collections.abc import Iterator
 
 from app.models import SimulationState, VenueEdge, VenueLayout, VenueNode, VenueTemplateSummary
 from app.services.nokia_nac import NokiaNaCClient, NokiaNaCError
@@ -320,6 +322,19 @@ class CamaraSimulator:
     def qos_relief(self) -> float:
         """An active QoD session lowers the network cost of coordination."""
         return QOS_RELIEF_FACTOR if self._qos_active else 1.0
+
+    @contextmanager
+    def decision_budget(self) -> Iterator[None]:
+        """Bound the wall-clock time one decision may spend on live providers.
+
+        Outside this window the client keeps its per-request timeout, so a
+        one-off call from an endpoint is unaffected.
+        """
+        self.nokia.start_decision_budget()
+        try:
+            yield
+        finally:
+            self.nokia.clear_decision_budget()
 
     def drain_live_api_calls(self) -> list[str]:
         calls, self._live_api_calls = self._live_api_calls, []

@@ -1,8 +1,9 @@
 const api = "";
-let state = null, layout = null, incident = null, decision = null, routeHistory = [], demoRun = 0, agentRuntime = null;
+let state = null, layout = null, incident = null, decision = null, routeHistory = [], agentRuntime = null;
 let teams = [];
 let liveSocket = null, reconnectTimer = null;
 const $ = (id) => document.getElementById(id);
+const { draw: drawVenueMap, densityColor } = window.RescueRouteMap;
 
 async function request(path, options = {}) {
   const response = await fetch(`${api}${path}`, { headers: { "Content-Type": "application/json" }, ...options });
@@ -84,10 +85,6 @@ function renderTeams() {
     ? teams.map(team => `<div class="team ${team.status}"><b>${escapeHtml(team.name)}</b><span>${team.status}</span><i>${label(team.location)}</i></div>`).join("")
     : "Roster unavailable.";
 }
-function densityColor(value) { const hue = Math.round(140 - value * 140); return `hsl(${hue} 75% 56%)`; }
-function nodeMap() { return new Map(layout.nodes.map((node) => [node.id, node])); }
-function edgeKey(a, b) { return [a, b].sort().join(" <-> "); }
-
 function render() {
   if (!state || !layout) return;
   $("venue-title").textContent = layout.title;
@@ -117,73 +114,13 @@ function render() {
   corridor.value = previous || corridor.value;
   drawMap();
 }
-// The venue schematic packs nodes together, so labels parked above every node
-// overlapped. Each one takes the first free slot around its node; the incident,
-// the selected gate and the entrances get first choice.
-function mapLabelPriority(node) {
-  if (incident?.location === node.id) return 3;
-  if (decision?.selected_gate === node.id) return 2;
-  return node.kind === "gate" ? 1 : 0;
-}
-// A slot also has to miss the corridors themselves: a label parked above a node
-// whose corridor arrives from above sat right on top of that line.
-function segmentHitsBox(p, q, box) {
-  const { x, y, w, h } = box;
-  if (Math.max(p.x, q.x) < x || Math.min(p.x, q.x) > x + w) return false;
-  if (Math.max(p.y, q.y) < y || Math.min(p.y, q.y) > y + h) return false;
-  const side = (cx, cy) => (q.x - p.x) * (cy - p.y) - (q.y - p.y) * (cx - p.x);
-  const corners = [side(x, y), side(x + w, y), side(x, y + h), side(x + w, y + h)];
-  return !(corners.every((v) => v > 0) || corners.every((v) => v < 0));
-}
-function placeMapLabels() {
-  const overlaps = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-  const points = nodeMap();
-  const hitsEdge = (box) => layout.edges.some((edge) => {
-    const a = points.get(edge.source), b = points.get(edge.destination);
-    return a && b && segmentHitsBox(a, b, box);
-  });
-  const ranked = [...layout.nodes].sort((a, b) =>
-    mapLabelPriority(b) - mapLabelPriority(a) || a.id.localeCompare(b.id));
-  const taken = [];
-  return ranked.map((node) => {
-    const text = label(node.id);
-    // No text metrics in a static SVG string. Measured against the rendered
-    // labels, 6.6px per character never under-estimates the 12px font by more
-    // than the padding below absorbs.
-    const width = text.length * 6.6, r = (node.kind === "gate" ? 13 : 10) + 8;
-    const o = Math.round(r * 0.75);
-    // Four sides first, then the diagonals, which is what a dense corner of the
-    // graph needs when every side is crossed by a corridor.
-    const slots = [
-      { x: node.x, y: node.y - r, anchor: "middle" },
-      { x: node.x, y: node.y + r + 9, anchor: "middle" },
-      { x: node.x - r, y: node.y + 4, anchor: "end" },
-      { x: node.x + r, y: node.y + 4, anchor: "start" },
-      { x: node.x - o, y: node.y - o, anchor: "end" },
-      { x: node.x + o, y: node.y - o, anchor: "start" },
-      { x: node.x - o, y: node.y + o + 7, anchor: "end" },
-      { x: node.x + o, y: node.y + o + 7, anchor: "start" },
-    ].map((slot) => {
-      const left = slot.anchor === "middle" ? slot.x - width / 2 : slot.anchor === "end" ? slot.x - width : slot.x;
-      return { ...slot, box: { x: left - 3, y: slot.y - 11, w: width + 6, h: 15 } };
-    });
-    const free = (candidate) => !taken.some((box) => overlaps(box, candidate.box));
-    const slot = slots.find((c) => free(c) && !hitsEdge(c.box)) || slots.find(free) || slots[0];
-    taken.push(slot.box);
-    return `<text class="node-label" text-anchor="${slot.anchor}" x="${slot.x}" y="${slot.y}">${text}</text>`;
-  }).join("");
-}
 function drawMap() {
-  const svg = $("venue-map"), nodes = nodeMap(), routePairs = new Set();
-  if (decision) for (let i = 0; i < decision.route.length - 1; i++) routePairs.add(edgeKey(decision.route[i], decision.route[i + 1]));
-  const routeLines = layout.edges.map((edge) => {
-    const a = nodes.get(edge.source), b = nodes.get(edge.destination), key = edgeKey(edge.source, edge.destination);
-    const closed = state.closed_corridors.includes(key); return `<line class="edge ${closed ? "closed" : ""}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>${routePairs.has(key) ? `<line class="route" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>` : ""}`;
-  }).join("");
-  const halos = layout.nodes.filter(n => n.id !== "ambulance_bay").map((node) => { const relevant = layout.edges.find(e => e.source === node.id || e.destination === node.id); const d = relevant?.zone ? state.zone_congestion[relevant.zone] || .2 : .1; return `<circle class="crowd-halo" cx="${node.x}" cy="${node.y}" r="${30 + d * 46}" fill="${densityColor(d)}"/>`; }).join("");
-  const circles = layout.nodes.map((node) => `<circle class="node ${node.kind} ${incident?.location === node.id ? "incident" : ""}" cx="${node.x}" cy="${node.y}" r="${node.kind === "gate" ? 13 : 10}"/>`).join("");
-  const marks = circles + placeMapLabels();
-  svg.innerHTML = `<rect width="840" height="510" fill="#f7faf7"/>${halos}${routeLines}${marks}`;
+  drawVenueMap($("venue-map"), {
+    layout, state,
+    route: decision?.route || [],
+    incidentLocation: incident?.location,
+    selectedGate: decision?.selected_gate,
+  });
 }
 function log(items) { $("activity").innerHTML = items.map(item => `<li>${formatActivity(item)}</li>`).join(""); }
 async function syncIncidentState() {
@@ -209,78 +146,6 @@ async function applyRecordedScenario() {
     $("decision").textContent = "Scenario ready. Create an emergency to run the orchestration flow.";
   } catch (error) { $("decision").textContent = error.message; }
 }
-const pause = (milliseconds) => new Promise(resolve => setTimeout(resolve, milliseconds));
-function demoIncidentLocation() {
-  const scenarioTargets = {
-    hajj_tawaf_surge: "kaaba_tawaf",
-    hajj_masaa_congestion: "masaa_corridor",
-    corridor_closed: "first_aid",
-  };
-  const target = scenarioTargets[state.active_scenario];
-  if (target && layout.nodes.some(node => node.id === target)) return target;
-  const venueTargets = {
-    stadium_match: ["main_stage", "first_aid", "central_plaza"],
-    music_festival: ["main_stage", "food_court", "first_aid"],
-    pilgrimage_flow: ["kaaba_tawaf", "masaa_corridor", "medical_post"],
-  };
-  const targets = venueTargets[layout.template] || [];
-  const available = targets.filter(targetId => layout.nodes.some(node => node.id === targetId));
-  const location = available[demoRun % available.length] || layout.nodes.at(-1).id;
-  demoRun += 1;
-  return location;
-}
-async function runFullDemo() {
-  const button = $("run-full-demo"), activity = [];
-  let temporaryClosure = null;
-  button.disabled = true; button.textContent = "Running emergency demo…";
-  try {
-    incident = decision = null; routeHistory = [];
-    if (!state || !layout) { state = await request("/simulation/state"); layout = await request("/simulation/layout"); }
-    const location = demoIncidentLocation();
-    activity.push(`Auto demo uses current parameters: ${state.title} · ${label(state.crowd_pattern)} · seed ${state.seed}`, `Incident received: critical medical emergency at ${label(location)}`); log(activity);
-    $("decision").textContent = "Finding a reachable team and evaluating entry routes…";
-    await pause(450);
-
-    incident = await request("/incidents", { method:"POST", body:JSON.stringify({ location, priority:"critical", description:"Full emergency demo" }) });
-    const dispatch = await request(`/incidents/${incident.id}/dispatch`, { method:"POST" });
-    incident = dispatch.incident; decision = dispatch.decision; await refreshHistory(); render();
-    activity.push(...decision.api_calls, `Route selected: ${label(decision.selected_gate)}`); log(activity);
-    $("decision").textContent = decision.explanation;
-    await pause(650);
-
-    const disruption = decision.segments.find(segment => segment.zone) || decision.segments[0];
-    const disruptionKey = disruption ? [disruption.source, disruption.destination].sort().join(" <-> ") : "";
-    if (disruption && !state.closed_corridors.includes(disruptionKey)) {
-      state = await request("/simulation/events/corridor", { method:"POST", body:JSON.stringify({ source:disruption.source, destination:disruption.destination, closed:true }) });
-      temporaryClosure = disruption;
-      render(); activity.push(`Live disruption: ${label(disruption.source)} ↔ ${label(disruption.destination)} closed`, "Automatic reroute requested for the affected route"); log(activity);
-      await pause(650);
-    } else if (disruption) {
-      activity.push(`Auto reroute skipped: ${label(disruption.source)} ↔ ${label(disruption.destination)} was already closed`); log(activity);
-    }
-
-    if (decision.selected_gate === "on_site") {
-      activity.push(`Geofencing: ${decision.team_id} was already inside the venue; no gate crossing to record`); log(activity);
-    } else {
-      await request(`/incidents/${incident.id}/events/geofence`, { method:"POST", body:JSON.stringify({ team_id:decision.team_id, location:decision.selected_gate, event_type:"entered_selected_gate" }) });
-      activity.push(`Geofencing: ${decision.team_id} entered ${label(decision.selected_gate)}`); log(activity);
-    }
-    await pause(450);
-    const arrival = await request(`/incidents/${incident.id}/events/geofence`, { method:"POST", body:JSON.stringify({ team_id:decision.team_id, location:incident.location, event_type:"reached_patient" }) });
-    incident.status = arrival.completed ? "resolved" : incident.status; render();
-    activity.push("Geofencing: team reached patient", "Emergency demo completed"); log(activity);
-    $("decision").textContent = "Emergency response completed. The selected team was tracked from dispatch through arrival.";
-  } catch (error) { $("decision").textContent = error.message; activity.push(`Demo failed: ${error.message}`); log(activity); await syncIncidentState(); }
-  finally {
-    if (temporaryClosure) {
-      try {
-        state = await request("/simulation/events/corridor", { method:"POST", body:JSON.stringify({ source:temporaryClosure.source, destination:temporaryClosure.destination, closed:false }) });
-        render(); addLiveActivity(`Auto demo cleanup: ${label(temporaryClosure.source)} ↔ ${label(temporaryClosure.destination)} reopened; your parameters were preserved`);
-      } catch { addLiveActivity("Auto demo cleanup could not reopen the temporary corridor"); }
-    }
-    button.disabled = false; button.textContent = "Run full emergency demo";
-  }
-}
 async function createIncident() {
   try {
     const location = layout.nodes.find(n => n.id === "main_stage")?.id
@@ -292,12 +157,10 @@ async function createIncident() {
   } catch (error) { $("decision").textContent = error.message; await syncIncidentState(); }
 }
 async function advanceTime() { try { state = await request("/simulation/advance", { method:"POST", body:JSON.stringify({ minutes:10 }) }); render(); if (incident) addLiveActivity("Crowd update submitted; affected active routes reroute automatically."); } catch (error) { $("decision").textContent = error.message; } }
-async function reroute(message) { const result = await request(`/incidents/${incident.id}/recalculate-route`, { method:"POST" }); incident = result.incident; decision = result.decision; await refreshHistory(); render(); log([message, ...decision.api_calls]); $("decision").textContent = decision.explanation; }
 async function toggleCorridor() { try { const [source,destination] = $("corridor").value.split("|"); state = await request("/simulation/events/corridor", { method:"POST", body:JSON.stringify({source,destination,closed:true}) }); render(); if (incident) addLiveActivity(`${label(source)} corridor closed; affected active routes reroute automatically.`); else $("decision").textContent = "Corridor closed. Create an emergency to see its routing impact."; } catch (error) { $("decision").textContent = error.message; } }
 async function markGate() { if (!decision || !incident) return; try { const progress = await request(`/incidents/${incident.id}/events/geofence`, { method:"POST", body:JSON.stringify({team_id:decision.team_id,location:decision.selected_gate,event_type:"entered_selected_gate"}) }); log(["Geofencing: team entered selected gate", ...progress.events.map(e => `${e.event_type}: ${label(e.location)}`)]); } catch (error) { $("decision").textContent = error.message; } }
 async function markArrival() { if (!decision || !incident) return; try { const progress = await request(`/incidents/${incident.id}/events/geofence`, { method:"POST", body:JSON.stringify({team_id:decision.team_id,location:incident.location,event_type:"reached_patient"}) }); incident.status = progress.completed ? "resolved" : incident.status; render(); log(["Geofencing: team reached patient", ...progress.events.map(e => `${e.event_type}: ${label(e.location)}`)]); } catch (error) { $("decision").textContent = error.message; } }
 $("apply-scenario").addEventListener("click", applyRecordedScenario);
-$("run-full-demo").addEventListener("click", runFullDemo);
 $("load-scenario").addEventListener("click", loadScenario); $("create-incident").addEventListener("click", createIncident); $("advance-time").addEventListener("click", advanceTime); $("toggle-corridor").addEventListener("click", toggleCorridor);
 $("mark-gate").addEventListener("click", markGate); $("mark-arrival").addEventListener("click", markArrival);
 async function loadAgentRuntime() { try { agentRuntime = await request("/agent/status"); renderApiStatus(); } catch { agentRuntime = null; } }
