@@ -146,7 +146,13 @@ TEMPLATES = {
             "north_outer_road": (755, 70), "south_outer_road": (755, 440),
             "gate_a": (180, 115), "gate_b": (180, 385), "gate_c": (660, 385), "gate_d": (660, 115), "north_corridor": (350, 115),
             "south_corridor": (360, 385), "central_plaza": (420, 250),
-            "east_concourse": (600, 250), "first_aid": (520, 385),
+            # In the western bowl rather than on the southern row.  It used to
+            # sit at (520, 385), exactly on the straight line the gate_c <->
+            # south_corridor corridor is drawn along, so every route through
+            # that corridor appeared to fork at the first-aid post instead of
+            # running past it and doubling back.  Here the two corridors it
+            # declares (100 m and 120 m) also match the canvas scale.
+            "east_concourse": (600, 250), "first_aid": (270, 260),
             # Off the southern row and out from under the plaza, so the
             # stage is not crowded by its neighbours or by their corridor.
             "main_stage": (440, 335),
@@ -186,7 +192,9 @@ TEMPLATES = {
         positions={
             "ambulance_bay": (60, 255), "gate_a": (190, 100), "gate_b": (185, 255),
             "gate_c": (195, 410), "entry_plaza": (380, 110), "food_court": (405, 260),
-            "east_path": (420, 420), "first_aid": (585, 340), "main_stage": (750, 255),
+            # Off the east_path <-> main_stage line, which it used to sit 2 px
+            # from: routes through that path drew straight over the post.
+            "east_path": (420, 420), "first_aid": (525, 310), "main_stage": (750, 255),
         },
         graph=_graph([
             ("ambulance_bay", "gate_a", 200, None), ("ambulance_bay", "gate_b", 270, None), ("ambulance_bay", "gate_c", 300, None),

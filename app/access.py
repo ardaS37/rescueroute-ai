@@ -20,6 +20,8 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 
 from fastapi import Request
 
+from app.security import constant_time_equals
+
 logger = logging.getLogger(__name__)
 
 ACCESS_CODE_ENV = "RESCUEROUTE_ACCESS_CODE"
@@ -88,7 +90,7 @@ def verify_session(token: str | None) -> str | None:
 
 
 def code_matches(candidate: str) -> bool:
-    return hmac.compare_digest(candidate.strip(), access_code())
+    return constant_time_equals(candidate.strip(), access_code())
 
 
 def is_public_path(path: str) -> bool:

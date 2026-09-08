@@ -1,6 +1,4 @@
-import asyncio
 import base64
-import hmac
 import logging
 import os
 from pathlib import Path
@@ -16,10 +14,11 @@ from app.models import (AdvanceSimulationRequest, ApplyScenarioRequest, Configur
     AgentRuntimeStatus, AgentTrace, IncidentProgress, IncidentRouteHistory, RouteDecision, SimulationState,
     TeamState, UpdateCongestionRequest, VenueLayout, VenueTemplateSummary)
 from app import access
-from app.security import (SIMULATION_LIMITER, dispatch_guard, log_startup_posture,
-    rate_limiting_enabled, write_guard)
+from app.security import (SIMULATION_LIMITER, constant_time_equals, dispatch_guard,
+    log_startup_posture, rate_limiting_enabled, write_guard)
 from app.workspace import Workspace, WorkspaceRegistry
-from app.services.incident_service import IncidentNotFoundError, IncidentService
+from app.services.emergency_agent import EmergencyAgent
+from app.services.incident_service import IncidentNotFoundError
 from app.services.persistence import SQLiteStore
 from app.settings import load_local_env
 
@@ -123,7 +122,7 @@ def verify_nokia_webhook(request: Request) -> None:
         return
     basic_value = base64.b64encode(f"rescueroute-ai:{expected}".encode("utf-8")).decode("ascii")
     valid_credentials = (f"Bearer {expected}", f"Basic {basic_value}")
-    if not expected or not any(hmac.compare_digest(provided, candidate) for candidate in valid_credentials):
+    if not expected or not any(constant_time_equals(provided, candidate) for candidate in valid_credentials):
         scheme = provided.split(" ", 1)[0] if provided else "missing"
         logger.warning("Rejected Nokia webhook credential (scheme=%s, value_length=%d)", scheme, len(provided))
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Nokia webhook credential")
@@ -210,7 +209,7 @@ def health() -> HealthResponse:
 @app.get("/agent/status", response_model=AgentRuntimeStatus, tags=["AI agent"])
 def agent_status() -> AgentRuntimeStatus:
     """Expose readiness without ever returning the Gemini API key."""
-    return emergency_agent.runtime_status()
+    return EmergencyAgent.runtime_status()
 
 
 @app.get("/teams", response_model=list[TeamState], tags=["teams"])

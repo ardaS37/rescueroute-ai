@@ -14,10 +14,14 @@ from fastapi.testclient import TestClient
 
 from app import access, security
 from app.main import app, workspaces
-from app.models import Priority, SimulationState
+from app.models import Priority
 from app.services.persistence import SQLiteStore
 
 CODE = {"RESCUEROUTE_ACCESS_CODE": "haram-2026", "RESCUEROUTE_SESSION_SECRET": "test-secret"}
+# ``app.main`` loads the developer's local .env at import, so a test that
+# asserts a credential is rejected has to pin the switch that waives it.
+# Otherwise the suite passes on CI and fails on a machine running the simulator.
+SIGNED_CALLBACKS = {"NAC_SIMULATOR_ALLOW_UNSIGNED_CALLBACKS": "false"}
 
 
 class SessionTokenTests(unittest.TestCase):
@@ -81,7 +85,7 @@ class AccessGateTests(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_the_health_probe_and_nokia_callbacks_stay_reachable(self) -> None:
-        with patch.dict(os.environ, CODE, clear=False), TestClient(app) as client:
+        with patch.dict(os.environ, CODE | SIGNED_CALLBACKS, clear=False), TestClient(app) as client:
             self.assertEqual(client.get("/health").status_code, 200)
             # Rejected on its own sink credential, not on the access gate.
             self.assertEqual(

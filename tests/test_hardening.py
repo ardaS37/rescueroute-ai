@@ -6,8 +6,10 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from app import security
-from app.main import app, workspaces
+from fastapi import HTTPException, Request
+
+from app import access, security
+from app.main import app, verify_nokia_webhook, workspaces
 from app.models import IncidentStatus, Priority
 from app.services.camara_simulator import CamaraSimulator
 from app.services.incident_service import IncidentService, IncidentStateError
@@ -230,6 +232,56 @@ class VenueSwitchEndpointTests(unittest.TestCase):
             with client.websocket_connect("/ws/dashboard") as socket:
                 socket.receive_json()
         self.assertEqual(realtime.connection_count, before)
+
+
+class CredentialComparisonTests(unittest.TestCase):
+    """A credential a client can send must never be able to raise a 500.
+
+    Header values reach the application latin-1 decoded, and ``compare_digest``
+    refuses a ``str`` carrying a character above U+007F, so a single byte above
+    0x7F used to turn every rejected credential into an unhandled TypeError.
+    """
+
+    @staticmethod
+    def _request_with_authorization(value: str) -> Request:
+        return Request({
+            "type": "http", "method": "POST", "path": "/webhooks/nokia/geofence",
+            "headers": [(b"authorization", value.encode("latin-1"))],
+            "client": ("203.0.113.7", 45678), "query_string": b"",
+        })
+
+    def test_a_non_ascii_credential_is_rejected_rather_than_raised_on(self) -> None:
+        self.assertFalse(security.constant_time_equals("Bearer ünicode", "Bearer secret"))
+        self.assertTrue(security.constant_time_equals("Bearer secret", "Bearer secret"))
+
+    def test_a_non_ascii_webhook_credential_answers_401(self) -> None:
+        with patch.dict(os.environ, {"NAC_WEBHOOK_TOKEN": "webhook-secret"}, clear=False):
+            with self.assertRaises(HTTPException) as rejected:
+                verify_nokia_webhook(self._request_with_authorization("Bearer ünicode"))
+        self.assertEqual(rejected.exception.status_code, 401)
+
+    def test_a_non_ascii_access_code_is_rejected_rather_than_raised_on(self) -> None:
+        with patch.dict(os.environ, {"RESCUEROUTE_ACCESS_CODE": "haram-2026"}, clear=False):
+            self.assertFalse(access.code_matches("şifre"))
+            self.assertTrue(access.code_matches("haram-2026"))
+
+
+class AgentStatusEndpointTests(unittest.TestCase):
+    """The dashboard reads this to label its API badges, and swallows failures."""
+
+    def test_agent_status_reports_the_configured_provider(self) -> None:
+        with TestClient(app) as client:
+            with patch.dict(os.environ, {"GEMINI_API_KEY": ""}, clear=False):
+                fallback = client.get("/agent/status")
+            with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}, clear=False):
+                configured = client.get("/agent/status")
+
+        self.assertEqual(fallback.status_code, 200)
+        self.assertEqual(fallback.json()["provider"], "deterministic_fallback")
+        self.assertFalse(fallback.json()["configured"])
+        self.assertEqual(configured.status_code, 200)
+        self.assertEqual(configured.json()["provider"], "gemini")
+        self.assertTrue(configured.json()["configured"])
 
 
 if __name__ == "__main__":

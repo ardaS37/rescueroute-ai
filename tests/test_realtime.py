@@ -80,7 +80,9 @@ class WebSocketEndpointTests(unittest.TestCase):
         self.assertIn("Automatic reroute", history[-1]["trigger"])
 
     def test_nokia_webhook_rejects_missing_bearer_credential(self) -> None:
-        with TestClient(app) as client:
+        # Pinned, because a local .env that enables the unsigned simulator
+        # callback would otherwise make this assertion silently untrue.
+        with patch.dict(os.environ, {"NAC_SIMULATOR_ALLOW_UNSIGNED_CALLBACKS": "false"}, clear=False),              TestClient(app) as client:
             response = client.post("/webhooks/nokia/geofence", json={"type": "area-entered"})
         self.assertEqual(response.status_code, 401)
 

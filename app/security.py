@@ -26,6 +26,17 @@ logger = logging.getLogger(__name__)
 TOKEN_ENV = "RESCUEROUTE_API_TOKEN"
 
 
+def constant_time_equals(provided: str, expected: str) -> bool:
+    """Compare two credentials without leaking their length through timing.
+
+    ``hmac.compare_digest`` raises ``TypeError`` on a ``str`` that carries a
+    character above U+007F, and headers reach us latin-1 decoded, so a caller
+    could turn a rejected credential into a 500 by putting one byte above 0x7F
+    in it.  Comparing the encoded bytes rejects it as the bad credential it is.
+    """
+    return hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8"))
+
+
 def _positive_float(name: str, default: float) -> float:
     try:
         value = float(os.getenv(name, "").strip() or default)
@@ -111,7 +122,7 @@ def _require_token(request: Request) -> None:
         if header.lower().startswith("bearer ")
         else request.headers.get("x-api-key", "")
     )
-    if not hmac.compare_digest(provided, expected):
+    if not constant_time_equals(provided, expected):
         logger.warning("Rejected unauthenticated write from %s", _client_key(request))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -72,8 +72,17 @@ class QosTermTests(unittest.TestCase):
         simulator = CamaraSimulator()
         routing = RoutingService(simulator)
         self.assertEqual(simulator.qos_relief(), 1.0)
+        full_price = routing.shortest_route("ambulance_bay", "main_stage")
+
         simulator.activate_qos("medic_alpha", "incident")
         self.assertLess(simulator.qos_relief(), 1.0)
+        relieved = routing.shortest_route("ambulance_bay", "main_stage")
+
+        # The relief has to reach the scored edge, not only the reported flag.
+        self.assertLess(
+            relieved.network_penalty_seconds, full_price.network_penalty_seconds
+        )
+        self.assertEqual(relieved.distance_seconds, full_price.distance_seconds)
 
 
 class AccessTermTests(unittest.TestCase):
