@@ -221,3 +221,8 @@ py -m unittest discover -s tests -t . -v
 ```
 
 The test suite covers routing, deterministic scenarios, fallback-team assignment, automatic-reroute filtering, persistent route history, WebSocket delivery, and Nokia Geofencing callback-to-incident progress. GitHub Actions runs this suite for every push and pull request.
+
+
+## By
+- Arda Saplıoğlu
+
