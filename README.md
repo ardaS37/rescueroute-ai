@@ -6,6 +6,28 @@ RescueRoute AI helps emergency teams reach incidents inside crowded stadiums, co
 **Free 2D arena:** https://tech-mate.tech/dashboard/arena/
 **API documentation:** https://tech-mate.tech/docs
 
+## Screenshots
+
+| Landing page | Interfaces |
+| --- | --- |
+| ![RescueRoute AI landing page](docs/screenshots/landing-page.png) | ![RescueRoute AI interface overview](docs/screenshots/interfaces.png) |
+
+| Guided demo | Control centre |
+| --- | --- |
+| ![Guided emergency demo](docs/screenshots/guided-demo.png) | ![Emergency control centre](docs/screenshots/control-centre.png) |
+
+| Stadium venue map | Masjid al-Haram Hajj flow |
+| --- | --- |
+| ![Stadium venue routing map](docs/screenshots/stadium-map.png) | ![Masjid al-Haram Hajj routing map](docs/screenshots/hajj-map.png) |
+
+| Medical responder view | Free 2D crowd arena |
+| --- | --- |
+| ![Medical responder route view](docs/screenshots/responder-view.png) | ![Free 2D crowd arena](docs/screenshots/crowd-arena.png) |
+
+| Live corridor flow | API documentation |
+| --- | --- |
+| ![Live corridor flow](docs/screenshots/live-flow.png) | ![RescueRoute API documentation](docs/screenshots/api-docs.png) |
+
 ## Why it matters
 
 At mass events, a route that is physically shorter can be slower or unsafe because of crowd pressure, a closed corridor, or unreliable emergency-team connectivity. RescueRoute AI turns those signals into a transparent routing decision, for example:
